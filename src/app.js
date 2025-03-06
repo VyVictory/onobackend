@@ -15,7 +15,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000", 
-      "https://ono-ono.vercel.app/",
+      "https://ono-ono.vercel.app",
     ], // Allow only requests from localhost:3000
     methods: "GET,POST,PUT,DELETE", // Allow specific HTTP methods
     allowedHeaders: "Content-Type, Authorization", // Allow specific headers
