@@ -1,5 +1,5 @@
 import express from 'express';
-import { login, register } from '../controllers/authCTL.js';    
+import { login, register, forgotPassword, verifyResetToken, resetPassword } from '../controllers/authCTL.js';    
 import passport from 'passport';
 import jwt from 'jsonwebtoken';
 const router = express.Router();
@@ -27,5 +27,10 @@ router.get('/google/callback',
         res.redirect(`${process.env.FRONTEND_URL}/oauth-callback?token=${token}`);
     }
 );
+
+// Routes cho quên mật khẩu
+router.post('/forgot-password', forgotPassword);
+router.get('/reset-password/:token', verifyResetToken);
+router.post('/reset-password/:token', resetPassword);
 
 export default router;

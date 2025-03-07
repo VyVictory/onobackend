@@ -26,6 +26,8 @@ const userSchema = new mongoose.Schema(
     title: { type: String, default: "" }, // Danh sưng
     authProvider: { type: String, enum: ['local', 'google', 'facebook', 'twitter'], default: 'local' },
     authProviderId: { type: String },
+    resetPasswordToken: String,
+    resetPasswordExpiry: Date,
     // Các tính năng mạng xã hội
   },
   { timestamps: true }

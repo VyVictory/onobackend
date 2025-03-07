@@ -3,6 +3,9 @@ import jwt from "jsonwebtoken";
 import User from "../models/user.js";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import { createEmailTransporter } from '../config/emailConfig.js';
 dotenv.config(); // Load biến môi trường từ .env
 
 const SECRET_KEY = process.env.JWT_SECRET || "emiton"; // Sử dụng biến môi trường
@@ -148,4 +151,110 @@ export const login = async (req, res) => {
     console.error("❌ Error during login:", error);
     res.status(500).json({ message: "Error logging in", error: error.message });
   }
+};
+
+// Gửi email reset password
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        
+        // Kiểm tra email có tồn tại
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng với email này' });
+        }
+
+        // Tạo token
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenExpiry = Date.now() + 3600000; // 1 giờ
+
+        // Lưu token vào database
+        user.resetPasswordToken = resetToken;
+        user.resetPasswordExpiry = resetTokenExpiry;
+        await user.save();
+
+        // Tạo transporter
+        const transporter = createEmailTransporter();
+
+        // Tạo URL reset password
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+        // Cấu trúc email
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Reset mật khẩu',
+            html: `
+                <h2>Yêu cầu đặt lại mật khẩu</h2>
+                <p>Bạn đã yêu cầu đặt lại mật khẩu. Click vào link dưới đây để tiếp tục:</p>
+                <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Đặt lại mật khẩu</a>
+                <p>Link này sẽ hết hạn sau 1 giờ.</p>
+                <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+            `
+        };
+
+        // Gửi email
+        await transporter.sendMail(mailOptions);
+
+        res.json({ 
+            message: 'Email reset password đã được gửi',
+            debug: process.env.NODE_ENV === 'development' ? resetToken : undefined
+        });
+
+    } catch (error) {
+        console.error('Error in forgotPassword:', error);
+        res.status(500).json({
+            message: 'Lỗi khi gửi email reset password',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Xác thực token reset password
+export const verifyResetToken = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const user = await User.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpiry: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+        }
+
+        res.json({ message: 'Token hợp lệ' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi xác thực token' });
+    }
+};
+
+// Reset password
+export const resetPassword = async (req, res) => {
+    try {
+        const { token } = req.params;
+        const { password } = req.body;
+
+        const user = await User.findOne({
+            resetPasswordToken: token,
+            resetPasswordExpiry: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+        }
+
+        // Hash password mới
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Cập nhật password và xóa token
+        user.password = hashedPassword;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpiry = undefined;
+        await user.save();
+
+        res.json({ message: 'Mật khẩu đã được đặt lại thành công' });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi reset password' });
+    }
 };
