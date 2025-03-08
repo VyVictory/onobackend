@@ -32,5 +32,12 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Thêm indexes
+userSchema.index({ firstName: 1 });
+userSchema.index({ lastName: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ firstName: 'text', lastName: 'text' }); // Text search index
+
 const User = mongoose.model("User", userSchema);
 export default User;

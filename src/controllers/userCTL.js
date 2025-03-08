@@ -83,3 +83,27 @@ export const getUsersByUsername = async (req, res) => {
       .json({ message: "Error fetching users", error: error.message });
   }
 };
+export const searchFriendsForMention = async (req, res) => {
+    try {
+        const { query } = req.query;
+        const currentUser = await User.findById(req.user._id);
+
+        // Tìm kiếm trong danh sách bạn bè
+        const users = await User.find({
+            $and: [
+                {
+                    $or: [
+                        { firstName: { $regex: query, $options: 'i' } },
+                        { lastName: { $regex: query, $options: 'i' } }
+                    ]
+                },
+            ]
+        })
+        .select('_id firstName lastName avatar')
+        .limit(5);
+
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: 'Error searching friends', error });
+    }
+};

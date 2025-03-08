@@ -8,6 +8,10 @@ import routerCmt from './routes/cmtApi.js';
 import routerGroup from './routes/groupApi.js';
 import routerNotifi from './routes/notifiApi.js';
 import passport from 'passport';
+import { createServer } from 'http';
+import { initSocket } from './config/socketConfig.js';
+import routerFriendship from './routes/friendshipApi.js';
+
 const app = express();
 
 // Enable CORS for your frontend (localhost:3000)
@@ -31,10 +35,14 @@ app.use("/post", routerPost);
 app.use("/cmt", routerCmt);
 app.use("/group", routerGroup);
 app.use("/noti", routerNotifi);
+app.use("/friend", routerFriendship);
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   res.status(500).json({ message: "Internal Server Error" });
 });
+
+const httpServer = createServer(app);
+const io = initSocket(httpServer);
 
 mongoose
   .connect(
@@ -46,8 +54,7 @@ mongoose
   )
   .then(() => {
     console.log("Connected to MongoDB");
-    // Start the server after successful connection
-    app.listen(3001, () => {
+    httpServer.listen(3001, () => {
       console.log("Server is running on port 3001");
     });
   })

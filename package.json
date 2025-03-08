@@ -27,6 +27,7 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-twitter": "^1.0.4",
     "regenerator-runtime": "^0.14.1",
+    "socket.io": "^4.8.1",
     "uuid": "^11.0.5"
   },
   "devDependencies": {
