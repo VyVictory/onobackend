@@ -38,7 +38,7 @@ export const getCurrentUser = async (req, res) => {
 
     const user = await User.findOne({ _id: id, ...offUser() })
       .select("-password -email")
-      .lean();// Chuyển kết quả từ mongoose document sang object để thêm trường friendStatus
+      .lean(); // Chuyển kết quả từ mongoose document sang object để thêm trường friendStatus
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -54,11 +54,14 @@ export const getCurrentUser = async (req, res) => {
     if (friendship) {
       if (friendship.status === "pending") {
         status = friendship.requester.equals(myId) ? "waiting" : "pending";
-      } else if (friendship.status === "friend") {
-        status = "friend";
+      } else if (friendship.status === "accepted") {
+        status = "accepted";
       } else if (friendship.status === "blocked") {
         status = "blocked";
-      } else if (friendship.status === "rejected") {
+      } else if (
+        friendship.status === "rejected" &&
+        friendship.requester.equals(myId)
+      ) {
         status = "rejected";
       }
     }
