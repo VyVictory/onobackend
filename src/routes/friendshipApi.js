@@ -9,6 +9,7 @@ import {
   unfriend,
   blockUser,
   getStatusFriend,
+  cancelRequest,
 } from "../controllers/friendshipCTL.js";
 import {
   validateFriendRequest,
@@ -25,12 +26,18 @@ routerFriendship.post(
 );
 
 routerFriendship.post(
-  "/respond/:requestId",
+  "/respond/:senderId",
   authMiddleware,
   validateFriendResponse,
   respondToFriendRequest
 );
 
+routerFriendship.post(
+  "/cancelRequest/:userId",
+  authMiddleware,
+  validateFriendResponse,
+  cancelRequest
+);
 routerFriendship.get("/friends", authMiddleware, getFriends);
 routerFriendship.get(
   "/requests/received",

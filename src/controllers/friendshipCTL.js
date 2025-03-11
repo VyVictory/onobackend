@@ -90,12 +90,12 @@ export const sendFriendRequest = async (req, res) => {
 // Phản hồi lời mời kết bạn
 export const respondToFriendRequest = async (req, res) => {
   try {
-    const { requestId } = req.params;
+    const { senderId } = req.params;
     const { status } = req.body;
     const userId = req.user._id;
-
+    console.log('idsen:'+ senderId+ "recepid:"+userId)
     const friendship = await Friendship.findOne({
-      _id: requestId,
+      requester: senderId,
       recipient: userId,
       status: "pending",
     }).populate("requester", "firstName lastName");
@@ -105,8 +105,20 @@ export const respondToFriendRequest = async (req, res) => {
         .status(404)
         .json({ message: "Không tìm thấy lời mời kết bạn" });
     }
+    switch (status) {
+      case "accepted":
+        friendship.status = "accepted";
+        break;
+      case "rejected":
+        friendship.status = "rejected";
+        break;
+      default:
+        return res.status(500).json({
+          message: "Lỗi phương thức xử lý lời mời kết bạn status là `accepted` or `rejected`",
+          error: error.message,
+        });
+    }
 
-    friendship.status = status;
     await friendship.save();
 
     if (status === "accepted") {
@@ -148,7 +160,28 @@ export const respondToFriendRequest = async (req, res) => {
     });
   }
 };
+export const cancelRequest = async (req, res) => {
+  const { userId } = req.params;
+  const requesterId = req.user._id;
+  try {
+    const friendship = await Friendship.findOneAndDelete({
+      requester: requesterId,
+      recipient: userId,
+      status: "pending",
+    });
 
+    if (!friendship) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy lời mời kết bạn" });
+    }
+
+    res.json({ message: "Đã hủy lời mời kết bạn" });
+  } catch (error) {
+    console.error("Cancel friend request error:", error);
+    res.status(500).json({ message: "Lỗi khi hủy lời mời kết bạn", error });
+  }
+};
 // Lấy danh sách bạn bè
 export const getFriends = async (req, res) => {
   try {
@@ -254,7 +287,7 @@ export const getStatusFriend = async (req, res) => {
     const { userId } = req.params;
     const myId = req.user._id;
 
-    // Kiểm tra nếu userId không phải ObjectId hợp lệ 
+    // Kiểm tra nếu userId không phải ObjectId hợp lệ
     if (!userId) {
       return res.status(400).json({ message: "ID không hợp lệ" });
     }
