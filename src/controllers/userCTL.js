@@ -33,7 +33,7 @@ export const getCurrentUser = async (req, res) => {
   try {
     // Tìm user theo ID và loại bỏ password
     // console.log(req.user._id)
-    const myId = req.user._id;
+    const myId = req?.user?._id; 
     const id = req.params.id; // Lấy trực tiếp ID
 
     const user = await User.findOne({ _id: id, ...offUser() })
@@ -66,7 +66,12 @@ export const getCurrentUser = async (req, res) => {
       }
     }
     // Gán trạng thái kết bạn vào user
-    user.friendStatus = status;
+
+    if (myId == null) {
+      user.friendStatus = "noFriend";
+    } else {
+      user.friendStatus = status;
+    }
     res.json(user);
   } catch (error) {
     console.error("❌ Error fetching profile:", error);

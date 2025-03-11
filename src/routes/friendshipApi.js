@@ -32,12 +32,7 @@ routerFriendship.post(
   respondToFriendRequest
 );
 
-routerFriendship.post(
-  "/cancelRequest/:userId",
-  authMiddleware,
-  validateFriendResponse,
-  cancelRequest
-);
+routerFriendship.post("/cancelRequest/:userId", authMiddleware, cancelRequest);
 routerFriendship.get("/friends", authMiddleware, getFriends);
 routerFriendship.get(
   "/requests/received",
