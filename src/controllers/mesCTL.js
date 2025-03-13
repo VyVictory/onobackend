@@ -1,26 +1,13 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
 import Message from '../models/message.js';
+import MessageGroup from '../models/messageGroup.js';
+import { getIO } from '../config/socketConfig.js';
+import moment from 'moment';
 
 const router = express.Router();
 
-// Gửi tin nhắn
-export const createMessage = async (req, res) => {
-    const { receiverId, content } = req.body;
 
-    try {
-        const newMessage = new Message({
-            sender: req.user.id,
-            receiver: receiverId,
-            content
-        });
-
-        await newMessage.save();
-        res.status(201).json(newMessage);
-    } catch (error) {
-        res.status(500).json({ message: 'Error creating message', error });
-    }
-};
 
 
 // Thu hồi tin nhắn
@@ -40,29 +27,53 @@ export const recallMessage = async (req, res) => {
         res.status(500).json({ message: 'Error recalling message', error });
     }
 };
+
 // Gửi tin nhắn
 export const sendMessage = async (req, res) => {
-    const { receiverId, content } = req.body;
-
     try {
-        const message = await Message.findById(req.params.messageId);
-        if (!message || message.receiver.toString() !== receiverId) {
-            return res.status(404).json({ message: 'Message not found or unauthorized' });
-        }
+        const { receiverId, content } = req.body;
+        const senderId = req.user._id;
 
+        // Tạo tin nhắn mới với timestamp sent
         const newMessage = new Message({
-            sender: req.user.id,
+            sender: senderId,
             receiver: receiverId,
-            content
+            content,
+            status: 'sent',
+            statusTimestamps: {
+                sent: new Date()
+            }
+        });
+        await newMessage.save();
+
+        // Lấy ngày hiện tại format YYYY-MM-DD
+        const today = moment(newMessage.createdAt).format('YYYY-MM-DD');
+
+        // Tìm hoặc tạo nhóm tin nhắn cho ngày hiện tại
+        let messageGroup = await MessageGroup.findOne({
+            participants: { $all: [senderId, receiverId] },
+            day: today
         });
 
-        await newMessage.save();
-        message.receiver = receiverId;
-        await message.save();
+        if (!messageGroup) {
+            messageGroup = new MessageGroup({
+                participants: [senderId, receiverId],
+                day: today,
+                messages: [newMessage._id]
+            });
+        } else {
+            messageGroup.messages.push(newMessage._id);
+        }
+        await messageGroup.save();
+
+        // Gửi thông báo realtime cho người nhận
+        getIO().to(`user_${receiverId}`).emit('newMessage', {
+            message: await newMessage.populate('sender', 'firstName lastName avatar')
+        });
 
         res.status(201).json(newMessage);
     } catch (error) {
-        res.status(500).json({ message: 'Error sending message', error });
+        res.status(500).json({ message: 'Lỗi khi gửi tin nhắn', error: error.message });
     }
 };
 
@@ -104,3 +115,35 @@ export const deleteMessage = async (req, res) => {
         res.status(500).json({ message: 'Error deleting message', error });
     }
 };
+
+// Lấy lịch sử tin nhắn theo ngày
+export const getMessageHistory = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const currentUserId = req.user._id;
+
+        const messageGroups = await MessageGroup.find({
+            participants: { $all: [currentUserId, userId] }
+        })
+        .sort({ day: -1 })
+        .populate({
+            path: 'messages',
+            populate: {
+                path: 'sender',
+                select: 'firstName lastName avatar'
+            }
+        });
+
+        // Đánh dấu tin nhắn là đã đọc khi người nhận mở lịch sử chat
+        getIO().emit('openChat', {
+            userId: currentUserId,
+            partnerId: userId
+        });
+
+        res.json(messageGroups);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy lịch sử tin nhắn', error: error.message });
+    }
+};
+
+

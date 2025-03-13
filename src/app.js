@@ -11,6 +11,7 @@ import passport from 'passport';
 import { createServer } from 'http';
 import { initSocket } from './config/socketConfig.js';
 import routerFriendship from './routes/friendshipApi.js';
+import routerMessage from './routes/mesApi.js';
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use("/cmt", routerCmt);
 app.use("/group", routerGroup);
 app.use("/noti", routerNotifi);
 app.use("/friend", routerFriendship);
+app.use("/message", routerMessage);
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   res.status(500).json({ message: "Internal Server Error" });
