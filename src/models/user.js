@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: "" },
     coverPhoto: { type: String, default: "" },
     status: { type: Boolean, default: true },
-    role: { type: String, required: true, default: 0 },
+    role: { type: String, required: true, default: 0 },                          //role = admin update
     banned: { type: Boolean, default: false },
     education: { type: Object, default: [] }, // học vấn
     address: {

@@ -31,7 +31,8 @@ export const recallMessage = async (req, res) => {
 // Gửi tin nhắn
 export const sendMessage = async (req, res) => {
     try {
-        const { receiverId, content } = req.body;
+        const {  content } = req.body;
+        const {receiverId} = req.params;
         const senderId = req.user._id;
 
         // Tạo tin nhắn mới với timestamp sent
@@ -39,6 +40,8 @@ export const sendMessage = async (req, res) => {
             sender: senderId,
             receiver: receiverId,
             content,
+            img:[],
+            files:[],
             status: 'sent',
             statusTimestamps: {
                 sent: new Date()

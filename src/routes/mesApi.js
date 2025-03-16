@@ -4,7 +4,7 @@ import {getMessage, getMessages, deleteMessage, sendMessage, recallMessage,getMe
 
 const routerMessage = express.Router();
 
-routerMessage.post('/send', authMiddleware, sendMessage);
+routerMessage.post('/send/:receiverId', authMiddleware, sendMessage);
 routerMessage.post('/:messageId/recall', authMiddleware, recallMessage);
 routerMessage.get('/:messageId', authMiddleware, getMessage);
 routerMessage.get('/all', authMiddleware, getMessages);
