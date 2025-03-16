@@ -12,6 +12,8 @@ import { createServer } from 'http';
 import { initSocket } from './config/socketConfig.js';
 import routerFriendship from './routes/friendshipApi.js';
 import routerMessage from './routes/mesApi.js';
+import routerBookmark from './routes/bookmarkApi.js';
+import routerFollow from './routes/followApi.js';
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use("/group", routerGroup);
 app.use("/noti", routerNotifi);
 app.use("/friend", routerFriendship);
 app.use("/message", routerMessage);
+app.use("/bookmark", routerBookmark);
+app.use("/follow", routerFollow);
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   res.status(500).json({ message: "Internal Server Error" });
