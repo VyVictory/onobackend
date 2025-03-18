@@ -269,7 +269,7 @@ export const getMessagesByRange = async (req, res) => {
         },
       ],
     })
-      .sort({ createdAt: -1 }) // Sắp xếp giảm dần theo thời gian
+      .sort({ createdAt: 1 }) // Sắp xếp giảm dần theo thời gian
       .skip(startIndex) // Bỏ qua số lượng tin nhắn đã xem
       .limit(limitCount); // Giới hạn số tin nhắn cần lấy
 
