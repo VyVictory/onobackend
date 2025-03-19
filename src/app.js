@@ -51,7 +51,7 @@ setInterval(() => {
     .then(() => console.log("Pinged Render!"))
     .catch((err) => console.error("Ping failed:", err));
 }, 600000); // 10 phút
-
+const PORT = process.env.PORT || 3001;
 mongoose
   .connect(
     "mongodb+srv://vyvictory:1234567899@cluster0.vahim.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0",
@@ -62,7 +62,7 @@ mongoose
   )
   .then(() => {
     console.log("Connected to MongoDB");
-    httpServer.listen(3001, () => {
+    httpServer.listen(PORT, () => {
       console.log("Server is running on port 3001");
     });
   })

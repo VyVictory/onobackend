@@ -6,10 +6,8 @@ let io;
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: ["http://localhost:3000", "https://ono-ono.vercel.app"],
-      methods: "GET,POST,PUT,DELETE", // Allow specific HTTP methods
-      allowedHeaders: "Content-Type, Authorization", // Allow specific headers
-      credentials: true, // ✅ Thêm dòng này để hỗ trợ cookie/token
+      origin: "*",
+      methods: ["GET", "POST"],
     },
   });
 
