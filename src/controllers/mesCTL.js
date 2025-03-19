@@ -285,6 +285,7 @@ export const getMessagesByRange = async (req, res) => {
         groupedMessages[dayKey] = [];
       }
       groupedMessages[dayKey].push({
+        _id:msg._id,
         content: msg.content,
         sender: msg.sender,
         receiver: msg.receiver,
