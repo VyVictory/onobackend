@@ -269,7 +269,7 @@ export const getMessagesByRange = async (req, res) => {
         },
       ],
     })
-      .sort({ createdAt: 1 }) // Sắp xếp giảm dần theo thời gian
+      .sort({ createdAt: -1 }) // Sắp xếp giảm dần theo thời gian
       .skip(startIndex) // Bỏ qua số lượng tin nhắn đã xem
       .limit(limitCount); // Giới hạn số tin nhắn cần lấy
 
@@ -279,7 +279,7 @@ export const getMessagesByRange = async (req, res) => {
 
     // Nhóm tin nhắn theo ngày
     const groupedMessages = {};
-    messages.forEach((msg) => {
+    messages.sort({ createdAt: -1 }).forEach((msg) => {
       const dayKey = msg.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
       if (!groupedMessages[dayKey]) {
         groupedMessages[dayKey] = [];
