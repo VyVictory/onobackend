@@ -255,7 +255,7 @@ export const getMessagesByRange = async (req, res) => {
     }
 
     const startIndex = parseInt(start) || 0; // Mặc định từ 0
-    const limitCount = parseInt(limit) || 100; // Mặc định lấy 100 tin nhắn 
+    const limitCount = parseInt(limit) || 20; // Mặc định lấy 100 tin nhắn
     // Truy vấn tin nhắn giữa hai người
     const messages = await Message.find({
       $or: [
@@ -276,16 +276,16 @@ export const getMessagesByRange = async (req, res) => {
     if (!messages || messages.length === 0) {
       return res.status(404).json({ message: "No messages found" });
     }
-
     // Nhóm tin nhắn theo ngày
+    messages.reverse();
     const groupedMessages = {};
-    messages.sort({ createdAt: -1 }).forEach((msg) => {
+    messages.forEach((msg) => {
       const dayKey = msg.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
       if (!groupedMessages[dayKey]) {
         groupedMessages[dayKey] = [];
       }
       groupedMessages[dayKey].push({
-        _id:msg._id,
+        _id: msg._id,
         content: msg.content,
         sender: msg.sender,
         receiver: msg.receiver,
