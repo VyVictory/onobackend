@@ -274,7 +274,7 @@ export const getMessagesByRange = async (req, res) => {
       .limit(limitCount); // Giới hạn số tin nhắn cần lấy
 
     if (!messages || messages.length === 0) {
-      return res.status(404).json({ message: "No messages found" });
+      return res.status(200).json({ message: "No messages found" });
     }
     // Nhóm tin nhắn theo ngày
     messages.reverse();
