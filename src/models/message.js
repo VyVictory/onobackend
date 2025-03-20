@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import monment from 'mongoose-timestamp';
 
 const messageSchema = new mongoose.Schema({
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -27,7 +28,7 @@ const messageSchema = new mongoose.Schema({
         default: 'sent'
     },
     statusTimestamps: {
-        sent: { type: Date, default: Date.now },
+        sent: { type: Date, default: () => monment().tz('Asia/Ho_Chi_Minh').toDate() },
         delivered: Date,
         seen: Date
     },
