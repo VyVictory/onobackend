@@ -10,6 +10,8 @@ import {
   blockUser,
   getStatusFriend,
   cancelRequest,
+  getFriendsByRange,
+  searchFriends,
 } from "../controllers/friendshipCTL.js";
 import {
   validateFriendRequest,
@@ -43,5 +45,7 @@ routerFriendship.get("/requests/sent", authMiddleware, getSentFriendRequests);
 routerFriendship.delete("/unfriend/:friendId", authMiddleware, unfriend);
 routerFriendship.post("/block/:userId", authMiddleware, blockUser);
 routerFriendship.get("/status/:userId", authMiddleware, getStatusFriend);
+routerFriendship.get('/:userId/friends/range', authMiddleware, getFriendsByRange);
+routerFriendship.get('/:userId/friends/search', authMiddleware, searchFriends);
 
 export default routerFriendship;

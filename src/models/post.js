@@ -9,7 +9,13 @@ const postSchema = new mongoose.Schema(
       required: true,
     },
     content: { type: String, required: true },
-    media: [{ type: String }],
+    media: [{
+      url: { type: String, required: true },
+      type: { type: String, enum: ['image', 'video', 'gif'], required: true },
+      thumbnail: String, // cho video và gif
+      publicId: String, // ID của file trên Cloudinary để quản lý xóa
+      duration: Number // cho video
+    }],
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     shares: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
@@ -21,6 +27,9 @@ const postSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+postSchema.index({ content: 'text' });
+postSchema.index({ createdAt: -1 });
 
 const Post = mongoose.model("Post", postSchema);
 

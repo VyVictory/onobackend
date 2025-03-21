@@ -5,20 +5,21 @@ import { getIO } from "../config/socketConfig.js";
 import moment from "moment";
 import cloudinary from "../config/cloudinaryConfig.js";
 import { Readable } from "stream";
+import { uploadMedia, deleteMedia } from "../services/mediaService.js";
 
 // Thu hồi tin nhắn
 export const recallMessage = async (req, res) => {
-  try {
-    const message = await Message.findById(req.params.messageId);
+    try {
+        const message = await Message.findById(req.params.messageId);
 
-    if (!message || message.sender.toString() !== req.user.id) {
+        if (!message || message.sender.toString() !== req.user.id) {
       return res
         .status(404)
         .json({ message: "Message not found or unauthorized" });
-    }
+        }
 
-    message.isRecalled = true;
-    await message.save();
+        message.isRecalled = true;
+        await message.save();
 
     res.json({ message: "Message recalled" });
   } catch (error) {
@@ -39,152 +40,87 @@ const uploadToCloudinary = async (file, folder) => {
     });
 
     return result;
-  } catch (error) {
+    } catch (error) {
     console.error("Cloudinary upload error:", error);
     throw error;
-  }
+    }
 };
 
 // Gửi tin nhắn với media
 export const sendMessage = async (req, res) => {
   try {
     const { receiverId } = req.params;
-    const { content = "", messageType = "text" } = req.body;
-    const file = req.file;
+    const { content = '' } = req.body;
+    const files = req.files;
     const senderId = req.user._id;
 
-    // Validate cho tin nhắn văn bản
-    if (messageType === "text" && !content) {
-      return res.status(400).json({
-        message: "Nội dung tin nhắn là bắt buộc với tin nhắn văn bản",
+    if (!content && (!files || files.length === 0)) {
+      return res.status(400).json({ 
+        message: 'Tin nhắn phải có nội dung hoặc media' 
       });
     }
 
-    // Validate cho tin nhắn media
-    if (["image", "video", "voice", "gif"].includes(messageType) && !file) {
-      return res.status(400).json({
-        message: "File là bắt buộc với tin nhắn dạng media",
-      });
-    }
+    // Xử lý upload nhiều file
+    const mediaPromises = files ? files.map(async file => {
+      const type = file.mimetype.startsWith('image/gif') ? 'gif' :
+                  file.mimetype.startsWith('image/') ? 'image' :
+                  file.mimetype.startsWith('video/') ? 'video' :
+                  file.mimetype.startsWith('audio/') ? 'voice' : null;
 
-    let fileData = null;
-
-    if (file) {
-      try {
-        let uploadResult;
-        const options = {
-          folder: `message_${messageType}s`,
-          resource_type: "auto",
-        };
-
-        // Thêm options đặc biệt cho video
-        if (messageType === "video") {
           options.eager = [
             { width: 300, height: 300, crop: "pad", audio_codec: "none" },
             {
               width: 160,
               height: 100,
-              crop: "crop",
-              gravity: "south",
-              audio_codec: "none",
-            },
-          ];
-          options.eager_async = true;
-        }
+      if (!type) throw new Error('Invalid file type');
 
-        uploadResult = await uploadToCloudinary(file, options);
+      return await uploadMedia(file, type);
+    }) : [];
 
-        switch (messageType) {
-          case "image":
-            fileData = {
-              url: uploadResult.secure_url,
-              type: file.mimetype,
-            };
-            break;
+    const mediaResults = await Promise.all(mediaPromises);
 
-          case "video":
-            fileData = {
-              url: uploadResult.secure_url,
-              type: file.mimetype,
-              thumbnail: uploadResult.eager
-                ? uploadResult.eager[1].secure_url
-                : null,
-              duration: uploadResult.duration || null,
-            };
-            break;
-
-          case "voice":
-            fileData = {
-              url: uploadResult.secure_url,
-              type: file.mimetype,
-              duration: uploadResult.duration || null,
-            };
-            break;
-
-          case "gif":
-            fileData = {
-              url: uploadResult.secure_url,
-              type: file.mimetype,
-            };
-            break;
-        }
-      } catch (uploadError) {
-        console.error("Upload error:", uploadError);
-        return res.status(500).json({
-          message: "Lỗi khi tải lên file",
-          error: uploadError.message,
-        });
-      }
-    }
-
-    const messageData = {
+        const newMessage = new Message({
       sender: senderId,
-      receiver: receiverId,
-      content: content || "",
-      messageType,
-      file: fileData,
-      status: "sent",
+            receiver: receiverId,
+      content: content || '',
+      media: mediaResults,
+      status: 'sent',
       statusTimestamps: {
-        sent: new Date(),
-      },
-    };
+        sent: new Date()
+      }
+        });
 
-    const newMessage = new Message(messageData);
-    await newMessage.save();
+        await newMessage.save();
 
     // Gửi thông báo realtime
-    getIO()
-      .to(`user_${receiverId}`)
-      .emit("newMessage", {
-        message: await newMessage.populate(
-          "sender",
-          "firstName lastName avatar"
-        ),
-      });
-
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error("Send message error:", error);
-    res.status(500).json({
-      message: "Lỗi khi gửi tin nhắn",
-      error: error.message,
+    getIO().to(`user_${receiverId}`).emit('newMessage', {
+      message: await newMessage.populate('sender', 'firstName lastName avatar')
     });
-  }
+
+        res.status(201).json(newMessage);
+    } catch (error) {
+    console.error('Send message error:', error);
+    res.status(500).json({ 
+      message: 'Lỗi khi gửi tin nhắn', 
+      error: error.message 
+    });
+    }
 };
 
 // Lấy tin nhắn
 export const getMessage = async (req, res) => {
-  try {
-    const message = await Message.findById(req.params.messageId);
-    if (!message) {
+    try {
+        const message = await Message.findById(req.params.messageId);
+        if (!message) {
       return res.status(404).json({ message: "Message not found" });
-    }
+        }
 
-    res.json(message);
-  } catch (error) {
+        res.json(message);
+    } catch (error) {
     res.status(500).json({ message: "Error fetching message", error });
   }
 };
+
 export const getMessagesByDay = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -238,6 +174,7 @@ export const getMessagesByDay = async (req, res) => {
     res.status(500).json({ message: "Error fetching messages", error });
   }
 };
+
 import mongoose from "mongoose";
 
 export const getMessagesByRange = async (req, res) => {
@@ -306,27 +243,28 @@ export const getMessagesByRange = async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: "Error fetching messages", error });
-  }
+    }
 };
+
 // Lấy tất cả tin nhắn
 export const getMessages = async (req, res) => {
-  try {
-    const messages = await Message.find();
-    res.json(messages);
-  } catch (error) {
+    try {
+        const messages = await Message.find();
+        res.json(messages);
+    } catch (error) {
     res.status(500).json({ message: "Error fetching messages", error });
-  }
+    }
 };
 
 // Xóa tin nhắn
 export const deleteMessage = async (req, res) => {
-  try {
-    const message = await Message.findById(req.params.messageId);
-    if (!message) {
+    try {
+        const message = await Message.findById(req.params.messageId);
+        if (!message) {
       return res.status(404).json({ message: "Message not found" });
-    }
+        }
 
-    await message.delete();
+        await message.delete();
     res.json({ message: "Message deleted" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting message", error });
@@ -363,4 +301,56 @@ export const getMessageHistory = async (req, res) => {
       .status(500)
       .json({ message: "Lỗi khi lấy lịch sử tin nhắn", error: error.message });
   }
+};
+
+// Sửa tin nhắn
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const files = req.files;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+    if (!message || message.sender.toString() !== userId.toString()) {
+      return res.status(404).json({ message: 'Không tìm thấy tin nhắn hoặc không có quyền sửa' });
+    }
+
+    // Xóa media cũ nếu có
+    if (message.media && message.media.length > 0) {
+      await Promise.all(message.media.map(media => deleteMedia(media.publicId)));
+    }
+
+    // Upload media mới nếu có
+    const mediaPromises = files ? files.map(async file => {
+      const type = file.mimetype.startsWith('image/gif') ? 'gif' :
+                  file.mimetype.startsWith('image/') ? 'image' :
+                  file.mimetype.startsWith('video/') ? 'video' :
+                  file.mimetype.startsWith('audio/') ? 'voice' : null;
+
+      if (!type) throw new Error('Invalid file type');
+
+      return await uploadMedia(file, type);
+    }) : [];
+
+    const mediaResults = await Promise.all(mediaPromises);
+
+    message.content = content || '';
+    message.media = mediaResults;
+    message.isEdited = true;
+    await message.save();
+
+    // Thông báo tin nhắn đã được sửa
+    getIO().to(`user_${message.receiver}`).emit('messageEdited', {
+      message: await message.populate('sender', 'firstName lastName avatar')
+    });
+
+    res.json(message);
+    } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({ 
+      message: 'Lỗi khi sửa tin nhắn', 
+      error: error.message 
+    });
+    }
 };

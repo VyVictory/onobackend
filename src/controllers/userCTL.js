@@ -138,3 +138,40 @@ export const searchFriendsForMention = async (req, res) => {
     res.status(500).json({ message: "Error searching friends", error });
   }
 };
+
+// Tìm kiếm người dùng với phân trang
+export const searchUsers = async (req, res) => {
+    try {
+        const { search, start = 0, limit = 10 } = req.query;
+        const currentUserId = req.user._id;
+
+        const query = search ? {
+            $and: [
+                {
+                    $or: [
+                        { firstName: { $regex: search, $options: 'i' } },
+                        { lastName: { $regex: search, $options: 'i' } },
+                        { email: { $regex: search, $options: 'i' } }
+                    ]
+                },
+                { _id: { $ne: currentUserId } } // Loại trừ user hiện tại
+            ]
+        } : { _id: { $ne: currentUserId } };
+
+        const users = await User.find(query)
+            .select('firstName lastName avatar email')
+            .sort({ firstName: 1, lastName: 1 })
+            .skip(parseInt(start))
+            .limit(parseInt(limit));
+
+        const total = await User.countDocuments(query);
+
+        res.json({
+            users,
+            total,
+            hasMore: total > parseInt(start) + users.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tìm kiếm người dùng', error: error.message });
+    }
+};

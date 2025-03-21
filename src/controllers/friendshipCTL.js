@@ -320,3 +320,80 @@ export const getStatusFriend = async (req, res) => {
       .json({ message: "Lỗi khi lấy trạng thái kết bạn", error });
   }
 };
+
+// Lấy danh sách bạn bè theo range
+export const getFriendsByRange = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { start = 0, limit = 10 } = req.query;
+
+        const friendships = await Friendship.find({
+            users: userId,
+            status: 'accepted'
+        })
+        .sort({ createdAt: -1 })
+        .skip(parseInt(start))
+        .limit(parseInt(limit))
+        .populate('users', 'firstName lastName avatar email');
+
+        const total = await Friendship.countDocuments({
+            users: userId,
+            status: 'accepted'
+        });
+
+        // Lọc ra danh sách bạn bè (không bao gồm user hiện tại)
+        const friends = friendships.map(friendship => {
+            return friendship.users.find(user => user._id.toString() !== userId.toString());
+        });
+
+        res.json({
+            friends,
+            total,
+            hasMore: total > parseInt(start) + friends.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy danh sách bạn bè', error: error.message });
+    }
+};
+
+// Tìm kiếm bạn bè
+export const searchFriends = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { search, start = 0, limit = 10 } = req.query;
+
+        const friendships = await Friendship.find({
+            users: userId,
+            status: 'accepted'
+        }).populate({
+            path: 'users',
+            match: {
+                $or: [
+                    { firstName: { $regex: search, $options: 'i' } },
+                    { lastName: { $regex: search, $options: 'i' } }
+                ]
+            },
+            select: 'firstName lastName avatar email'
+        });
+
+        // Lọc ra những friendship có user match với search
+        const filteredFriendships = friendships.filter(friendship => 
+            friendship.users.length === 2
+        );
+
+        const paginatedFriendships = filteredFriendships
+            .slice(parseInt(start), parseInt(start) + parseInt(limit));
+
+        const friends = paginatedFriendships.map(friendship => 
+            friendship.users.find(user => user._id.toString() !== userId.toString())
+        );
+
+        res.json({
+            friends,
+            total: filteredFriendships.length,
+            hasMore: filteredFriendships.length > parseInt(start) + friends.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tìm kiếm bạn bè', error: error.message });
+    }
+};

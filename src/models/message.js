@@ -4,13 +4,14 @@ import monment from 'mongoose-timestamp';
 const messageSchema = new mongoose.Schema({
     sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    content: { 
-        type: String, 
-        required: function() {
-            return this.messageType === 'text'; // content chỉ bắt buộc khi là tin nhắn văn bản
-        },
-        default: ''
-    },
+    content: { type: String, default: '' },
+    media: [{
+        url: { type: String, required: true },
+        type: { type: String, enum: ['image', 'video', 'gif', 'voice'], required: true },
+        thumbnail: String,
+        publicId: String,
+        duration: Number
+    }],
     messageType: {
         type: String,
         enum: ['text', 'image', 'video', 'gif', 'sticker', 'voice', 'file'],

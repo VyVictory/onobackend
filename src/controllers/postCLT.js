@@ -4,6 +4,7 @@ import Post from '../models/post.js';
 import Notification from '../models/notification.js';
 import User from '../models/user.js';
 import { getIO } from '../config/socketConfig.js';
+import { uploadMedia, deleteMedia } from '../services/mediaService.js';
 
 // Hàm xử lý tìm mentions trong nội dung
 const extractMentions = async (content) => {
@@ -27,26 +28,32 @@ const MAX_MENTIONS = 10;
 
 // Đăng bài
 export const createPost = async (req, res) => {
-    const { content } = req.body;
-    const media = req.files; // Lấy các tệp đã tải lên
-
     try {
-        if (!req.user || !req.user._id) {
-            return res.status(401).json({ message: "Unauthorized" });
+        const { content } = req.body;
+        const files = req.files;
+        const author = req.user._id;
+
+        if (!content && (!files || files.length === 0)) {
+            return res.status(400).json({ 
+                message: 'Bài đăng phải có nội dung hoặc media' 
+            });
         }
 
-        if (!content || content.trim() === "") {
-            return res.status(400).json({ message: "Content cannot be empty" });
-        }
+        // Xử lý upload nhiều file
+        const mediaPromises = files ? files.map(async file => {
+            const type = file.mimetype.startsWith('image/gif') ? 'gif' :
+                        file.mimetype.startsWith('image/') ? 'image' :
+                        file.mimetype.startsWith('video/') ? 'video' : null;
 
-        // Kiểm tra xem có tệp nào được tải lên không
-        const mediaPaths = media ? media.map(file => file.path) : [];
+            if (!type) throw new Error('Invalid file type');
 
-        console.log("Uploaded files:", media);
+            return await uploadMedia(file, type);
+        }) : [];
+        const mediaResults = await Promise.all(mediaPromises);
 
         // Xử lý mentions
         const mentions = await extractMentions(content);
-        
+
         // Kiểm tra giới hạn mentions
         if (mentions.length > MAX_MENTIONS) {
             return res.status(400).json({ 
@@ -55,14 +62,16 @@ export const createPost = async (req, res) => {
         }
 
         const newPost = new Post({
-            author: req.user._id,
-            content: content.trim(),
-            media: mediaPaths,
+            author,
+            content: content || '',
+            media: mediaResults,
             mentions
         });
 
         await newPost.save();
+        const populatedPost = await Post.findById(newPost._id)
 
+        .populate('author', 'firstName lastName avatar');
         // Tạo và gửi thông báo
         const notifications = await Promise.all(mentions.map(async mention => {
             const notification = new Notification({
@@ -84,10 +93,13 @@ export const createPost = async (req, res) => {
             return notification;
         }));
 
-        res.status(201).json(newPost);
+        res.status(201).json(populatedPost);
     } catch (error) {
-        console.error("Error creating post:", error);
-        res.status(500).json({ message: "Error creating post", error });
+        console.error('Create post error:', error);
+        res.status(500).json({ 
+            message: 'Lỗi khi tạo bài đăng', 
+            error: error.message 
+        });
     }
 };
 
@@ -203,6 +215,61 @@ export const updatePost = async (req, res) => {
         res.status(500).json({ message: 'Error updating post', error });
     }
 };
+// Lấy bài viết theo range
+export const getPostsByRange = async (req, res) => {
+    try {
+        const { startIndex = 0, limitCount = 10 } = req.query;
+        
+        const posts = await Post.find()
+            .sort({ createdAt: -1 })
+            .skip(parseInt(startIndex))
+            .limit(parseInt(limitCount))
+            .populate('author', 'firstName lastName avatar')
+            .populate({
+                path: 'comments',
+                populate: {
+                    path: 'author',
+                    select: 'firstName lastName avatar'
+                }
+            });
 
+        const total = await Post.countDocuments();
+
+        res.json({
+            posts,
+            total,
+            hasMore: total > parseInt(startIndex) + posts.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi lấy bài viết', error: error.message });
+    }
+};
+
+// Tìm kiếm bài viết
+export const searchPosts = async (req, res) => {
+    try {
+        const { search, start = 0, limit = 10 } = req.query;
+
+        const query = search ? { 
+            $text: { $search: search } 
+        } : {};
+
+        const posts = await Post.find(query)
+            .sort({ createdAt: -1 })
+            .skip(parseInt(start))
+            .limit(parseInt(limit))
+            .populate('author', 'firstName lastName avatar');
+
+        const total = await Post.countDocuments(query);
+
+        res.json({
+            posts,
+            total,
+            hasMore: total > parseInt(start) + posts.length
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi khi tìm kiếm bài viết', error: error.message });
+    }
+};
 
 
