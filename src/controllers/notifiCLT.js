@@ -32,6 +32,41 @@ export const getNotifications = async (req, res) => {
         res.status(500).json({ message: 'Error fetching notifications', error });
     }
 };
+export const getNotificationsByRange = async (req, res) => {
+    try {
+        const { start, limit } = req.query;
+        const startIndex = parseInt(start) || 0; // Mặc định từ 0
+        const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
+        const notifications = await Notification.find({ recipient: req.user._id })
+            .sort({ createdAt: -1 })
+            .skip(startIndex) // Bỏ qua số thông báo đã xem
+            .limit(limitCount) // Giới hạn số lượng thông báo cần lấy
+            .populate('sender', 'firstName lastName avatar')
+            .populate('reference');
+
+        if (!notifications.length) {
+            return res.status(200).json({ message: "No notifications found" });
+        }
+        // Nhóm thông báo theo ngày
+        const groupedNotifications = {};
+        notifications.forEach((notification) => {
+            const dayKey = notification.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
+            if (!groupedNotifications[dayKey]) {
+                groupedNotifications[dayKey] = [];
+            }
+            groupedNotifications[dayKey].push(notification);
+        });
+        // Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
+        const result = Object.entries(groupedNotifications).map(([date, notifications]) => ({
+            date,
+            notifications,
+        }));
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching notifications', error });
+    }
+};
+
 
 // Đánh dấu thông báo đã đọc
 export const markAsRead = async (req, res) => {
