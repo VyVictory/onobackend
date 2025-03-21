@@ -67,11 +67,6 @@ export const sendMessage = async (req, res) => {
                   file.mimetype.startsWith('video/') ? 'video' :
                   file.mimetype.startsWith('audio/') ? 'voice' : null;
 
-          options.eager = [
-            { width: 300, height: 300, crop: "pad", audio_codec: "none" },
-            {
-              width: 160,
-              height: 100,
       if (!type) throw new Error('Invalid file type');
 
       return await uploadMedia(file, type);
