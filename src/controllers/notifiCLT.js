@@ -37,6 +37,11 @@ export const getNotificationsByRange = async (req, res) => {
         const { start, limit } = req.query;
         const startIndex = parseInt(start) || 0; // Mặc định từ 0
         const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
+        
+        // 📌 Truy vấn tất cả thông báo chưa đọc của user
+        const totalUnreadCount = await Notification.countDocuments({ recipient: req.user._id, read: false });
+
+        // 📌 Lấy danh sách thông báo theo phạm vi (phân trang)
         const notifications = await Notification.find({ recipient: req.user._id })
             .sort({ createdAt: -1 })
             .skip(startIndex) // Bỏ qua số thông báo đã xem
@@ -45,23 +50,27 @@ export const getNotificationsByRange = async (req, res) => {
             .populate('reference');
 
         if (!notifications.length) {
-            return res.status(200).json({ message: "No notifications found" });
+            return res.status(200).json({ unreadCount: totalUnreadCount, notifications: [] });
         }
-        // Nhóm thông báo theo ngày
+
+        // 📌 Nhóm thông báo theo ngày
         const groupedNotifications = {};
         notifications.forEach((notification) => {
             const dayKey = notification.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
             if (!groupedNotifications[dayKey]) {
-                groupedNotifications[dayKey] = [];
+                groupedNotifications[dayKey] = { notifications: [] };
             }
-            groupedNotifications[dayKey].push(notification);
+            groupedNotifications[dayKey].notifications.push(notification);
         });
-        // Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
-        const result = Object.entries(groupedNotifications).map(([date, notifications]) => ({
+
+        // 📌 Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
+        const result = Object.entries(groupedNotifications).map(([date, { notifications }]) => ({
             date,
             notifications,
         }));
-        res.json(result);
+
+        // 📌 Trả về tổng số thông báo chưa đọc + danh sách thông báo
+        res.json({ unreadCount: totalUnreadCount, notifications: result });
     } catch (error) {
         res.status(500).json({ message: 'Error fetching notifications', error });
     }

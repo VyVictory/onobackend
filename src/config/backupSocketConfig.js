@@ -4,42 +4,53 @@ import Message from "../models/message.js";
 let io;
 let onlineUsers = new Map();
 let userWatchers = new Map();
-
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
       origin: "*",
       methods: ["GET", "POST"],
     },
-  }); 
-  io.on("connection", (socket) => {
-    console.log("🔌 User connected:", socket.id);
-    console.log(onlineUsers)
-    socket.on("authenticate", (userId) => { 
-      if (!userId) return;
-      if (socket.userId) return; // 🔥 Tránh duplicate authenticate nếu user reconnect
+  });
 
+  io.on("connection", (socket) => {
+    console.log("User sendRequest connected:", socket.id);
+    socket.on("authenticate", (userId) => {
       socket.userId = userId;
       socket.join(`user_${userId}`);
       onlineUsers.set(userId, true);
-
       console.log(`✅ User ${userId} is now online.`);
+
+      // Gửi cập nhật trạng thái đến client nào đã yêu cầu user này
       notifyWatchers(userId, true);
     });
 
+    // Khi client yêu cầu trạng thái của một hoặc nhiều user
     socket.on("requestUserStatus", (userIds) => {
-      if (!Array.isArray(userIds)) userIds = [userIds];
       console.log(`📡 ${socket.id} requested user status:`, userIds);
 
+      if (!Array.isArray(userIds)) {
+        if (typeof userIds === "string") {
+          userIds = [userIds];
+        } else {
+          console.error("❌ Invalid userIds:", userIds);
+          return;
+        }
+      }
+      // Lưu socket này vào danh sách theo dõi từng user
       userIds.forEach((id) => {
-        if (!userWatchers.has(id)) userWatchers.set(id, new Set());
+        if (!userWatchers.has(id)) {
+          userWatchers.set(id, new Set());
+        }
         userWatchers.get(id).add(socket.id);
       });
 
+      // Gửi trạng thái hiện tại của các user được yêu cầu
       const users = userIds.map((id) => ({
         _id: id,
-        status: !!onlineUsers.get(id),
+        status: !!onlineUsers.get(id), // Kiểm tra user có online không
       }));
+
+      console.log(`📡 Sending status to ${socket.id}:`, { users });
 
       socket.emit("updateUserStatus", { users });
     });
@@ -68,12 +79,14 @@ export const initSocket = (server) => {
           });
         }
       } catch (error) {
-        console.error("❌ Error updating message status:", error);
+        console.error("Error updating message status:", error);
       }
     });
 
+    // Xử lý khi người dùng đọc tin nhắn
     socket.on("readMessages", async ({ userId, partnerId }) => {
       try {
+        // Cập nhật trạng thái "seen" cho tất cả tin nhắn
         await Message.updateMany(
           {
             sender: partnerId,
@@ -88,6 +101,7 @@ export const initSocket = (server) => {
           }
         );
 
+        // Thông báo cho người gửi về việc tin nhắn đã được đọc
         const updatedMessages = await Message.find({
           sender: partnerId,
           receiver: userId,
@@ -98,67 +112,51 @@ export const initSocket = (server) => {
           messages: updatedMessages,
         });
       } catch (error) {
-        console.error("❌ Error updating message status:", error);
+        console.error("Error updating message status:", error);
       }
     });
 
+    // Xử lý typing status
     socket.on("typing", ({ receiverId, isTyping }) => {
       io.to(`user_${receiverId}`).emit("userTyping", {
         userId: socket.userId,
         isTyping,
       });
     });
-
     socket.on("disconnect", () => {
-      console.log("❌ User disconnected:", socket.id);
+      console.log("User disconnected:", socket.id);
 
       if (socket.userId) {
-        setTimeout(() => {
-          if (
-            [...io.sockets.sockets.values()].some(
-              (s) => s.userId === socket.userId
-            )
-          ) {
-            console.log(
-              `⚠️ User ${socket.userId} is still connected on another tab.`
-            );
-            return;
-          }
+        onlineUsers.delete(socket.userId);
+        console.log(`❌ User ${socket.userId} is now offline.`);
 
-          onlineUsers.delete(socket.userId);
-          console.log(`🔴 User ${socket.userId} is now offline.`);
-          notifyWatchers(socket.userId, false);
-        }, 1000); // 🔥 Delay để tránh mất trạng thái do refresh nhanh
-
-        userWatchers.forEach((sockets, userId) => {
-          sockets.delete(socket.id);
-          if (sockets.size === 0) userWatchers.delete(userId);
-        });
+        // Gửi cập nhật trạng thái **chỉ** đến client nào đã yêu cầu user này
+        notifyWatchers(socket.userId, false);
       }
+      userWatchers.forEach((sockets, userId) => {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          userWatchers.delete(userId);
+        }
+      });
     });
   });
 
   return io;
 };
-
 const notifyWatchers = (userId, isOnline) => {
-  if (!userId || !userWatchers.has(userId)) return;
-
   const watchers = userWatchers.get(userId);
-  watchers.forEach((socketId) => {
-    io.to(socketId).emit("updateUserStatus", {
-      users: [{ _id: userId, status: isOnline }],
+  if (watchers) {
+    watchers.forEach((socketId) => {
+      io.to(socketId).emit("updateUserStatus", {
+        users: [{ _id: userId, status: isOnline }],
+      });
     });
-  });
-
-  console.log(
-    `📢 Notify watchers: User ${userId} is now ${
-      isOnline ? "online" : "offline"
-    }`
-  );
+  }
 };
-
 export const getIO = () => {
-  if (!io) throw new Error("Socket.io not initialized");
+  if (!io) {
+    throw new Error("Socket.io not initialized");
+  }
   return io;
 };
