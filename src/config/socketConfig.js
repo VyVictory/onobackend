@@ -13,7 +13,7 @@ export const initSocket = (server) => {
   });
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("User sendRequest connected:", socket.id);
     socket.on("authenticate", (userId) => {
       socket.userId = userId;
       socket.join(`user_${userId}`);
