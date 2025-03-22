@@ -16,9 +16,16 @@ export const initSocket = (server) => {
     console.log("🔌 User connected:", socket.id);
     console.log(onlineUsers)
     socket.on("authenticate", (userId) => { 
-      if (!userId) return;
-      if (socket.userId) return; // 🔥 Tránh duplicate authenticate nếu user reconnect
-
+      if (!userId) return; 
+      const existingSocket = [...io.sockets.sockets.values()].find(
+        (s) => s.userId === userId
+      );
+    
+      if (existingSocket) {
+        console.log(`🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`);
+        existingSocket.disconnect(true); // 🔥 Ngắt kết nối socket cũ
+      }
+      
       socket.userId = userId;
       socket.join(`user_${userId}`);
       onlineUsers.set(userId, true);
