@@ -20,7 +20,13 @@ export const recallMessage = async (req, res) => {
 
     message.isRecalled = true;
     await message.save();
-
+    const receiverId = message.receiver.toString();
+    getIO()
+      .to(`user_${receiverId}`)
+      .to(`user_${req.user._id}`) // Cả người gửi cũng nhận thông báo
+      .emit("messageRecalled", {
+        messageId: message._id,
+      });
     res.json({ message: "Message recalled" });
   } catch (error) {
     res.status(500).json({ message: "Error recalling message", error });
@@ -234,7 +240,7 @@ export const getMessagesByRange = async (req, res) => {
         sender: msg.sender,
         receiver: msg.receiver,
         messageType: msg.messageType,
-        media: msg.media, 
+        media: msg.media,
         status: msg.status,
         isRecalled: msg.isRecalled,
         createdAt: msg.createdAt,
