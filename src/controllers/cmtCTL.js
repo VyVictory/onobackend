@@ -5,6 +5,7 @@ import Post from '../models/post.js';
 import Notification from '../models/notification.js';
 import { getIO } from '../config/socketConfig.js';
 import Friendship from '../models/friendship.js';
+import { createNotification } from '../services/notificationService.js';
 
 // Lấy bình luận
 export const getComment = async (req, res) => {

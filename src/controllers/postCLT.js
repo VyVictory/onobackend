@@ -5,6 +5,7 @@ import Notification from "../models/notification.js";
 import User from "../models/user.js";
 import { getIO } from "../config/socketConfig.js";
 import { uploadMedia, deleteMedia } from "../services/mediaService.js";
+import { deactivateNotifications } from "../services/notificationService.js";
 
 // Hàm xử lý tìm mentions trong nội dung
 const extractMentions = async (content) => {
@@ -184,84 +185,103 @@ export const getPost = async (req, res) => {
 export const getPosts = async (req, res) => {
   try {
     const posts = await Post.find();
-    console.log(posts)
+    console.log(posts);
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: "Error fetching posts", error });
   }
 };
 export const getPostByRange = async (req, res) => {
-    try {
-      const { start, limit } = req.query;
-      const startIndex = parseInt(start) || 0;
-      const limitCount = parseInt(limit) || 20;
-  
-      // Kiểm tra tham số hợp lệ
-      if (
-        isNaN(startIndex) ||
-        isNaN(limitCount) ||
-        startIndex < 0 ||
-        limitCount < 1
-      ) {
-        return res.status(400).json({ message: "Invalid pagination parameters" });
-      }
-  
-      // Truy vấn danh sách bài viết
-      const posts = await Post.find({})
-        .sort({ createdAt: -1 })
-        .skip(startIndex)
-        .limit(limitCount)
-        .populate("author", "firstName lastName avatar")
-        .populate({
-          path: "comments",
-          populate: { path: "author", select: "firstName lastName avatar" },
-        });
-  
-      if (!posts || posts.length === 0) {
-        return res.status(200).json({ message: "No posts found", posts: [] });
-      }
-  
-      // Lấy tổng số bài viết
-      const total = await Post.countDocuments();
-  
-      // Chuẩn hóa dữ liệu trước khi trả về
-      const formattedPosts = posts.map((post) => ({
-        _id: post._id,
-        author: post.author,
-        content: post.content,
-        media: post.media || [], // Đảm bảo media luôn có dạng array
-        security: post.security || "Public", // Giá trị mặc định nếu không có
-        likes: post.likes || [],
-        shares: post.shares || [],
-        comments: post.comments || [],
-        mentions: post.mentions || [],
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-      }));
-  
-      res.json({
-        posts: formattedPosts,
-        total,
-        hasMore: total > startIndex + formattedPosts.length,
-      });
-    } catch (error) {
-      console.error("Lỗi khi lấy danh sách bài viết:", error);
-      res.status(500).json({
-        message: "Lỗi khi lấy danh sách bài viết",
-        error: error.message,
-      });
+  try {
+    const { start, limit } = req.query;
+    const startIndex = parseInt(start) || 0;
+    const limitCount = parseInt(limit) || 20;
+
+    // Kiểm tra tham số hợp lệ
+    if (
+      isNaN(startIndex) ||
+      isNaN(limitCount) ||
+      startIndex < 0 ||
+      limitCount < 1
+    ) {
+      return res.status(400).json({ message: "Invalid pagination parameters" });
     }
-  };
+
+    // Truy vấn danh sách bài viết
+    const posts = await Post.find({})
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limitCount)
+      .populate("author", "firstName lastName avatar")
+      .populate({
+        path: "comments",
+        populate: { path: "author", select: "firstName lastName avatar" },
+      });
+
+    if (!posts || posts.length === 0) {
+      return res.status(200).json({ message: "No posts found", posts: [] });
+    }
+
+    // Lấy tổng số bài viết
+    const total = await Post.countDocuments();
+
+    // Chuẩn hóa dữ liệu trước khi trả về
+    const formattedPosts = posts.map((post) => ({
+      _id: post._id,
+      author: post.author,
+      content: post.content,
+      media: post.media || [], // Đảm bảo media luôn có dạng array
+      security: post.security || "Public", // Giá trị mặc định nếu không có
+      likes: post.likes || [],
+      shares: post.shares || [],
+      comments: post.comments || [],
+      mentions: post.mentions || [],
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
+
+    res.json({
+      posts: formattedPosts,
+      total,
+      hasMore: total > startIndex + formattedPosts.length,
+    });
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách bài viết:", error);
+    res.status(500).json({
+      message: "Lỗi khi lấy danh sách bài viết",
+      error: error.message,
+    });
+  }
+};
 
 // Xóa bài viết
 export const deletePost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) {
-      return res.status(404).json({ message: "Post not found" });
+    try {
+      const userId = req.user._id;
+      const { postId } = req.params;
+
+      const post = await Post.findOne({
+        _id: postId,
+        author: userId,
+      });
+
+      if (!post) {
+        return res.status(404).json({ message: "Không tìm thấy bài viết" });
+      }
+
+      // Xóa bài viết
+      await post.remove();
+
+      // Hủy kích hoạt tất cả thông báo liên quan đến bài viết
+      await deactivateNotifications(postId);
+
+      res.json({ message: "Đã xóa bài viết" });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
 
-    await post.delete();
+    await Post.delete();
     res.json({ message: "Post deleted" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting post", error });

@@ -1,5 +1,6 @@
 import { Server } from "socket.io";
 import Message from "../models/message.js";
+import Notification from "../models/notification.js";
 
 let io;
 let onlineUsers = new Map();
@@ -32,6 +33,16 @@ export const initSocket = (server) => {
 
       console.log(`✅ User ${userId} is now online.`);
       notifyWatchers(userId, true);
+
+      // Lắng nghe sự kiện hủy thông báo
+      socket.on('notificationDeactivated', async (data) => {
+        const { notificationId } = data;
+        const notification = await Notification.findById(notificationId);
+        if (notification && notification.recipient.toString() === userId) {
+          notification.isActive = false;
+          await notification.save();
+        }
+      });
     });
 
     socket.on("requestUserStatus", (userIds) => {
