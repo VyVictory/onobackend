@@ -2,6 +2,7 @@ import Friendship from "../models/friendship.js";
 import User from "../models/user.js";
 import Notification from "../models/notification.js";
 import { getIO } from "../config/socketConfig.js";
+import { createNotification, deactivateNotifications } from '../services/notificationService.js';
 
 // Gửi lời mời kết bạn
 export const sendFriendRequest = async (req, res) => {
@@ -55,24 +56,22 @@ export const sendFriendRequest = async (req, res) => {
     await newFriendship.save();
 
     // Tạo thông báo
-    const notification = new Notification({
+    await createNotification({
       recipient: recipientId,
       sender: requesterId,
       type: "FRIEND_REQUEST",
-      reference: newFriendship._id,
+      referenceId: newFriendship._id,
       referenceModel: "Friendship",
       content: `${requester.firstName} ${requester.lastName} đã gửi lời mời kết bạn`,
     });
-
-    await notification.save();
 
     // Gửi thông báo realtime
     getIO()
       .to(`user_${recipientId}`)
       .emit("notification", {
         type: "FRIEND_REQUEST",
-        notification: await notification.populate(
-          "sender",
+        notification: await newFriendship.populate(
+          "requester",
           "firstName lastName avatar"
         ),
       });
@@ -164,6 +163,7 @@ export const respondToFriendRequest = async (req, res) => {
     });
   }
 };
+
 export const cancelRequest = async (req, res) => {
   const { userId } = req.params;
   const requesterId = req.user._id;
@@ -180,12 +180,16 @@ export const cancelRequest = async (req, res) => {
         .json({ message: "Không tìm thấy lời mời kết bạn" });
     }
 
+    // Hủy kích hoạt thông báo liên quan
+     await deactivateNotifications(friendship._id);
+
     res.json({ message: "Đã hủy lời mời kết bạn" });
   } catch (error) {
     console.error("Cancel friend request error:", error);
     res.status(500).json({ message: "Lỗi khi hủy lời mời kết bạn", error });
   }
 };
+
 // Lấy danh sách bạn bè
 export const getFriends = async (req, res) => {
   try {
@@ -286,6 +290,7 @@ export const blockUser = async (req, res) => {
     res.status(500).json({ message: "Lỗi khi chặn người dùng", error });
   }
 };
+
 export const getStatusFriend = async (req, res) => {
   try {
     const { userId } = req.params;

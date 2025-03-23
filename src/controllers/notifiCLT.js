@@ -21,17 +21,31 @@ export const toggleNotification = async (req, res) => {
 // Lấy danh sách thông báo
 export const getNotifications = async (req, res) => {
     try {
-        const notifications = await Notification.find({ recipient: req.user._id })
-            .sort({ createdAt: -1 })
-            .populate('sender', 'firstName lastName avatar')
-            .populate('reference')
-            .limit(20);
+        const userId = req.user._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
 
-        res.json(notifications);
+        const notifications = await Notification.find({
+            recipient: userId,
+            isActive: true // Chỉ lấy thông báo còn active
+        })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('sender', 'firstName lastName avatar')
+        .populate('referenceId');
+
+        // Lọc bỏ các thông báo có reference không tồn tại
+        const filteredNotifications = notifications.filter(
+            notification => notification.referenceId != null
+        );
+
+        res.json(filteredNotifications);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching notifications', error });
+        res.status(500).json({ message: error.message });
     }
 };
+
 export const getNotificationsByRange = async (req, res) => {
     try {
         const { start, limit } = req.query;

@@ -5,6 +5,7 @@ import Notification from '../models/notification.js';
 import User from '../models/user.js';
 import { getIO } from '../config/socketConfig.js';
 import { uploadMedia, deleteMedia } from '../services/mediaService.js';
+import { deactivateNotifications } from '../services/notificationService.js';
 
 // Hàm xử lý tìm mentions trong nội dung
 const extractMentions = async (content) => {
@@ -178,15 +179,27 @@ export const getPosts = async (req, res) => {
 // Xóa bài viết
 export const deletePost = async (req, res) => {
     try {
-        const post = await Post.findById(req.params.postId);
+        const userId = req.user._id;
+        const { postId } = req.params;
+
+        const post = await Post.findOne({
+            _id: postId,
+            author: userId
+        });
+
         if (!post) {
-            return res.status(404).json({ message: 'Post not found' });
+            return res.status(404).json({ message: 'Không tìm thấy bài viết' });
         }
 
-        await post.delete();
-        res.json({ message: 'Post deleted' });
+        // Xóa bài viết
+        await post.remove();
+
+        // Hủy kích hoạt tất cả thông báo liên quan đến bài viết
+        await deactivateNotifications(postId);
+
+        res.json({ message: 'Đã xóa bài viết' });
     } catch (error) {
-        res.status(500).json({ message: 'Error deleting post', error });
+        res.status(500).json({ message: error.message });
     }
 };
 
