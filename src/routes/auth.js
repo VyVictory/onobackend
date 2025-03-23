@@ -1,6 +1,6 @@
 import express from 'express';
 import { login, register, forgotPassword, verifyResetToken, resetPassword } from '../controllers/authCTL.js';
-import passport from 'passport';
+import passport from '../config/passport.js';
 import jwt from 'jsonwebtoken';
 const router = express.Router();
 
@@ -8,23 +8,27 @@ router.post('/register', register);
 router.post('/login', login);
 
 router.get('/google',
-    passport.authenticate('google', { scope: ['profile', 'email'] })
+    passport.authenticate('google', { 
+        scope: ['profile', 'email'],
+        session: false 
+    })
 );
 
 router.get('/google/callback',
-    passport.authenticate('google', { session: false }),
+    passport.authenticate('google', { 
+        session: false,
+        failureRedirect: '/login'
+    }),
     (req, res) => {
-        const token = jwt.sign(
-            {
-                _id: req.user._id,
-                email: req.user.email,
-                firstName: req.user.firstName,
-                lastName: req.user.lastName
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-        res.redirect(`${process.env.FRONTEND_URL}/oauth-callback?token=${token}`);
+        try {
+            const { token } = req.user;
+            console.log(req.user);
+            // Chuyển hướng về frontend với token
+            res.redirect(`${process.env.FRONTEND_URL}/oauth-callback?token=${token}`);
+        } catch (error) {
+            console.error('Google callback error:', error);
+            res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_failed`);
+        }
     }
 );
 

@@ -7,13 +7,13 @@ import routerPost from "./routes/postApi.js";
 import routerCmt from "./routes/cmtApi.js";
 import routerGroup from "./routes/groupApi.js";
 import routerNotifi from "./routes/notifiApi.js";
-import passport from "passport";
 import { createServer } from "http";
 import { initSocket } from "./config/socketConfig.js";
 import routerFriendship from "./routes/friendshipApi.js";
 import routerMessage from "./routes/mesApi.js";
 import routerBookmark from "./routes/bookmarkApi.js";
 import routerFollow from "./routes/followApi.js";
+import passport from "./config/passport.js";
 
 const app = express();
 
@@ -22,13 +22,13 @@ app.use(
   cors({
     origin: ["http://localhost:3000", "https://ono-ono.vercel.app"], // Allow only requests from localhost:3000
     methods: "GET,POST,PUT,DELETE", // Allow specific HTTP methods
-    allowedHeaders: "Content-Type, Authorization", // Allow specific headers
+    allowedHeaders: "Content-Type, Authorization",
+    credentials: true,
   })
 );
 
 app.use(express.json());
 app.use(passport.initialize());
-
 app.use("/auth", authRoutes);
 app.use("/user", routerUser);
 app.use("/post", routerPost);
@@ -46,6 +46,8 @@ app.use((err, req, res, next) => {
 
 const httpServer = createServer(app);
 const io = initSocket(httpServer);
+
+
 setInterval(() => {
   fetch("https://ono-wtxp.onrender.com")
     .then(() => console.log("Pinged Render!"))

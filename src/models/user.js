@@ -3,16 +3,23 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema(
   {
     _id: { type: mongoose.Schema.Types.ObjectId, auto: true }, // Chuyển về ObjectId tự động
-    lastName: { type: String, required: true },
+    lastName: { type: String, required: function() {
+        return !this.googleId; // Chỉ bắt buộc nếu không phải tài khoản Google
+    }},
     firstName: { type: String, required: true },
     email: { type: String, required: true, unique: true, trim: true },
-    password: { type: String, required: true },
-    birthDate: { type: Date, required: true },
-    gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
-
+    password: { type: String, required: function() {
+        return !this.googleId; // Chỉ bắt buộc nếu không phải tài khoản Google
+    }},
+    birthDate: { type: Date, required: function() {
+        return !this.googleId; // Chỉ bắt buộc nếu không phải tài khoản Google
+    }},
+    gender: { type: String, enum: ["Male", "Female", "Other"], required: function() {
+        return !this.googleId; // Chỉ bắt buộc nếu không phải tài khoản Google
+    }},
     avatar: { type: String, default: "" },
     coverPhoto: { type: String, default: "" },
-    status: { type: Boolean, default: true },
+    status: { type: Boolean, default: false },
     role: { type: String, required: true, default: 0 },                          //role = admin update
     banned: { type: Boolean, default: false },
     education: { type: Object, default: [] }, // học vấn
@@ -28,6 +35,7 @@ const userSchema = new mongoose.Schema(
     authProviderId: { type: String },
     resetPasswordToken: String,
     resetPasswordExpiry: Date,
+    googleId: { type: String },
     // Các tính năng mạng xã hội
   },
   { timestamps: true }
