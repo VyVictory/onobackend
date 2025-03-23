@@ -18,14 +18,14 @@ const postSchema = new mongoose.Schema(
         duration: Number, // cho video
       },
     ],
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    shares: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
     security: {
       type: String,
       enum: ["Public", "Private", "MyFriend"],
       default: "Public",
     },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    shares: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
     mentions: [
       {
         user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
