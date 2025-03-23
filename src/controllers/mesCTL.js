@@ -12,7 +12,7 @@ export const recallMessage = async (req, res) => {
   try {
     const message = await Message.findById(req.params.messageId);
 
-    if (!message || message.sender.toString() !== req.user.id) {
+    if (!message || message.sender.toString() !== req.user._id) {
       return res
         .status(404)
         .json({ message: "Message not found or unauthorized" });
