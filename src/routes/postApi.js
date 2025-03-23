@@ -40,7 +40,7 @@ const routerPost = express.Router();
 routerPost.post('/', authMiddleware, upload.array('media', 10), createPost);
 routerPost.post('/:postId/send', authMiddleware, sharePost);
 routerPost.post('/:postId/recall', authMiddleware, recallPost);
-routerPost.get('/:postId', authMiddleware, getPost);
+routerPost.get('/getpost/:postId', authMiddleware, getPost);
 routerPost.get('/all', authMiddleware, getPosts);
 routerPost.get('/postByRange', authMiddleware, getPostByRange);
 routerPost.post('/:postId/like', authMiddleware, likePost);
