@@ -15,7 +15,7 @@ const getOAuthConfig = async () => {
   return config;
 };
 
-(async () => {
+(async (rq,res,next) => {
   try {
     const {
       GOOGLE_CLIENT_ID,
