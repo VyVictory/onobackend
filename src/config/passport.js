@@ -91,7 +91,7 @@ const getOAuthConfig = async () => {
 // Thêm route xử lý callback từ Google
 export const handleGoogleCallback = (req, res) => {
   const { token } = req.user;
-  res.redirect(`${CALLBACK_URL_FRONTEND}/login/gettoken?token=${token}`);
+  res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
 };
 
 // Đảm bảo export passport để sử dụng ở nơi khác
