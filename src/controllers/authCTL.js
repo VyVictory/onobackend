@@ -178,7 +178,7 @@ export const forgotPassword = async (req, res) => {
         const transporter = createEmailTransporter();
 
         // Tạo URL reset password
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+        const resetUrl = `${process.env.FRONTEND_URL}/login?otp=${resetToken}`;
 
         // Cấu trúc email
         const mailOptions = {

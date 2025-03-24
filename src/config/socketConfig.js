@@ -47,7 +47,7 @@ export const initSocket = (server) => {
 
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
-      console.log(`📡 ${socket.id} requested user status:`, userIds);
+      // console.log(`📡 ${socket.id} requested user status:`, userIds);
 
       userIds.forEach((id) => {
         if (!userWatchers.has(id)) userWatchers.set(id, new Set());
