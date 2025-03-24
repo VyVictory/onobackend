@@ -209,10 +209,10 @@ export const getPostByRange = async (req, res) => {
 
     // Truy vấn danh sách bài viết
     const posts = await Post.find({})
-  .populate('author', 'name email avatar') // Chỉ populate các trường cần thiết
-  .sort({ createdAt: -1 })
-  .skip(startIndex)
-  .limit(limitCount);
+      .populate("author", "avatar _id firstName lastName") // Chỉ populate các trường cần thiết
+      .sort({ createdAt: -1 })
+      .skip(startIndex)
+      .limit(limitCount);
 
     if (!posts || posts.length === 0) {
       return res.status(200).json({ message: "No posts found", posts: [] });
@@ -318,7 +318,7 @@ export const getPostsByRange = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(parseInt(startIndex))
       .limit(parseInt(limitCount))
-      .populate("author", "firstName lastName avatar")
+      .populate("author", "firstName lastName avatar _id")
       .populate({
         path: "comments",
         populate: {
