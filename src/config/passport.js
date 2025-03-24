@@ -17,7 +17,7 @@ const getOAuthConfig = async () => {
 
 (async () => {
   try {
-    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CALLBACK_URL } =
+    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CALLBACK_URL,JWT_SECRET } =
       await getOAuthConfig();
     passport.use(
       new GoogleStrategy(
@@ -67,7 +67,7 @@ const getOAuthConfig = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              process.env.JWT_SECRET,
+              JWT_SECRET,
               { expiresIn: "24h" }
             );
 
