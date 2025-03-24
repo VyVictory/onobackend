@@ -75,8 +75,8 @@ const getOAuthConfig = async () => {
               JWT_SECRET,
               { expiresIn: "24h" }
             );
-
-            return done(null, { user, token }, profile);
+            res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
+            // return done(null, { user, token }, profile);
           } catch (error) {
             return done(error);
           }
@@ -91,7 +91,7 @@ const getOAuthConfig = async () => {
 // Thêm route xử lý callback từ Google
 export const handleGoogleCallback = (req, res) => {
   const { token } = req.user;
-  res.redirect(`${CALLBACK_URL_FRONTEND}?token=${token}`);
+  res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
 };
 
 // Đảm bảo export passport để sử dụng ở nơi khác
