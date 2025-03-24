@@ -67,7 +67,7 @@ const setupGoogleAuth = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              JWT_SECRET,
+              JWT_SECRET || "emiton", 
               { expiresIn: "24h" }
             );
 
