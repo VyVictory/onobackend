@@ -3,6 +3,9 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
 import Config from "../models/config.js"; // Import model cấu hình
+import express from "express";
+
+const router = express.Router();
 
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
@@ -24,6 +27,7 @@ const getOAuthConfig = async () => {
       JWT_SECRET,
       CALLBACK_URL_FRONTEND,
     } = await getOAuthConfig();
+
     passport.use(
       new GoogleStrategy(
         {
@@ -75,8 +79,8 @@ const getOAuthConfig = async () => {
               JWT_SECRET,
               { expiresIn: "24h" }
             );
-            res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
-            // return done(null, { user, token }, profile);
+
+            request.res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
           } catch (error) {
             return done(error);
           }
@@ -87,12 +91,5 @@ const getOAuthConfig = async () => {
     console.error("❌ Error loading OAuth configuration:", error);
   }
 })();
-
-// Thêm route xử lý callback từ Google
-export const handleGoogleCallback = (req, res) => {
-  const { token } = req.user;
-  res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
-};
-
-// Đảm bảo export passport để sử dụng ở nơi khác
+ 
 export default passport;

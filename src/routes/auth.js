@@ -7,26 +7,34 @@ import {
   resetPassword,
 } from "../controllers/authCTL.js";
 import passport from "../config/passport.js";
-import jwt from "jsonwebtoken";
+
 const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
 
-// router.get(
-//   "/google",
-//   passport.authenticate("google", {
-//     scope: ["profile", "email"],
-//     session: false,
-//   })
-// );
+// Đăng nhập với Google
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
+  })
+);
 
 router.get(
   "/google/callback",
   passport.authenticate("google", {
     session: false,
     failureRedirect: "/login",
-  })
+  }),
+  (req, res) => {
+    if (!req.user || !req.user.token) {
+      return res.redirect("https://ono-ono.vercel.app/login?error=OAuthFailed");
+    }
+    const token = req.user.token;
+    res.redirect(`https://ono-ono.vercel.app/login?token=${token}`);
+  }
 );
 
 // Routes cho quên mật khẩu
