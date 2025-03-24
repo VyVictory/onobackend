@@ -6,7 +6,7 @@ const notificationSchema = new mongoose.Schema({
     type: { 
         type: String, 
         required: true,
-        enum: ['FRIEND_REQUEST', 'POST', 'COMMENT', 'COMMENT_MENTION','POST_MENTION', 'LIKE']
+        enum: ['FRIEND_REQUEST', 'FRIEND_ACCEPTED','POST', 'COMMENT', 'COMMENT_MENTION','POST_MENTION', 'LIKE','NEW_FOLLOWER']
     },
     referenceId: { 
         type: mongoose.Schema.Types.ObjectId,
