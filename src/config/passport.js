@@ -19,14 +19,6 @@ const getOAuthConfig = async () => {
   try {
     const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CALLBACK_URL } =
       await getOAuthConfig();
-
-    console.log("🔹 GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID || "Not Found");
-    console.log(
-      "🔹 GOOGLE_CLIENT_SECRET:",
-      GOOGLE_CLIENT_SECRET || "Not Found"
-    );
-    console.log("🔹 CALLBACK_URL:", CALLBACK_URL || "Not Found");
-
     passport.use(
       new GoogleStrategy(
         {
@@ -35,6 +27,7 @@ const getOAuthConfig = async () => {
           callbackURL: CALLBACK_URL,
           proxy: true,
           passReqToCallback: true,
+          scope: ["profile", "email"],
         },
         async (request, accessToken, refreshToken, profile, done) => {
           console.log(profile);
