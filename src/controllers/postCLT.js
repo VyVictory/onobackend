@@ -230,8 +230,8 @@ export const getPostByRange = async (req, res) => {
       _id: post._id,
       author: post.author,
       content: post.content,
+      security: post.security,
       media: post.media || [], // Đảm bảo media luôn có dạng array
-      security: post.security || "Public", // Giá trị mặc định nếu không có
       likes: post.likes || [],
       shares: post.shares || [],
       comments: post.comments || [],

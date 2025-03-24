@@ -60,8 +60,8 @@ export const getNotificationsByRange = async (req, res) => {
             .sort({ createdAt: -1 })
             .skip(startIndex) // Bỏ qua số thông báo đã xem
             .limit(limitCount) // Giới hạn số lượng thông báo cần lấy
-            .populate('sender', 'firstName lastName avatar')
-            .populate('reference');
+            // .populate('sender')
+            // .populate('reference');
 
         if (!notifications.length) {
             return res.status(200).json({ unreadCount: totalUnreadCount, notifications: [] });
