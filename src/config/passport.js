@@ -15,14 +15,14 @@ const getOAuthConfig = async () => {
   return config;
 };
 
-(async (rq,res,next) => {
+// Cấu hình Passport Google Strategy
+const setupGoogleAuth = async () => {
   try {
     const {
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
       CALLBACK_URL,
       JWT_SECRET,
-      CALLBACK_URL_FRONTEND,
     } = await getOAuthConfig();
 
     passport.use(
@@ -35,7 +35,7 @@ const getOAuthConfig = async () => {
           passReqToCallback: true,
           scope: ["profile", "email"],
         },
-        async (req, accessToken, refreshToken, profile, next) => {
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             let user = await User.findOne({ email: profile.emails[0].value });
 
@@ -67,24 +67,34 @@ const getOAuthConfig = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              "longtimenosee",
+              JWT_SECRET,
               { expiresIn: "24h" }
             );
 
-            // Gán user và token vào req để sử dụng sau này
-            req.user = { token, user };
-            next();
+            // Passport sử dụng `done()` để truyền user
+            return done(null, { token, user });
           } catch (error) {
             console.error("❌ Google OAuth Error:", error.message);
-            next();
+            return done(error, false);
           }
         }
       )
     );
+
+    passport.serializeUser((user, done) => {
+      done(null, user);
+    });
+
+    passport.deserializeUser((user, done) => {
+      done(null, user);
+    });
+
   } catch (error) {
     console.error("❌ Error loading OAuth configuration:", error);
-    next();
   }
-})();
+};
+
+// Chạy setup
+setupGoogleAuth();
 
 export default passport;
