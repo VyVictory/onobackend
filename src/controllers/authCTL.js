@@ -1,12 +1,13 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "../models/user.js";
-import dotenv from "dotenv";
+import User from "../models/user.js"; 
 import mongoose from "mongoose";
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import { createEmailTransporter } from '../config/emailConfig.js';
-dotenv.config(); // Load biến môi trường từ .env
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
 const SECRET_KEY = process.env.JWT_SECRET || "emiton"; // Sử dụng biến môi trường
 

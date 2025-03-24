@@ -1,7 +1,8 @@
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
-dotenv.config();
-
+if (process.env.NODE_ENV !== "production") {
+    require("dotenv").config();
+  }
+  
 const testEmail = async () => {
     try {
         const transporter = nodemailer.createTransport({

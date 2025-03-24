@@ -2,9 +2,10 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
-dotenv.config();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const CALLBACK_URL = process.env.CALLBACK_URL;
