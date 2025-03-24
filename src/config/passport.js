@@ -5,15 +5,18 @@ import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
 dotenv.config();
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const CALLBACK_URL = process.env.CALLBACK_URL;
 console.log(
     "🔹 GOOGLE_CLIENT_ID:",
-    process.env.GOOGLE_CLIENT_ID || "Not Found"
+    GOOGLE_CLIENT_ID|| "Not Found"
   );
   console.log(
     "🔹 GOOGLE_CLIENT_SECRET:",
-    process.env.GOOGLE_CLIENT_SECRET || "Not Found"
+    GOOGLE_CLIENT_SECRET|| "Not Found"
   );
-  console.log("🔹 CALLBACK_URL:", process.env.CALLBACK_URL || "Not Found");
+  console.log("🔹 CALLBACK_URL:", CALLBACK_URL|| "Not Found");
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -32,9 +35,9 @@ passport.deserializeUser(async (id, done) => {
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.CALLBACK_URL,
+      clientID: GOOGLE_CLIENT_ID,
+      clientSecret: GOOGLE_CLIENT_SECRET,
+      callbackURL: CALLBACK_URL,
     //   crentinal: true,
       proxy: true,
       passReqToCallback: true,
@@ -96,7 +99,7 @@ passport.use(
 export const handleGoogleCallback = (req, res) => {
   const { token } = req.user;
   // Chuyển hướng về frontend với token
-  res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+  res.redirect(`https://ono-ono.vercel.app/auth/callback?token=${token}`);
 };
 
 // Đảm bảo export passport để sử dụng ở nơi khác
