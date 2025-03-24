@@ -5,7 +5,7 @@ import Notification from "../models/notification.js";
 import User from "../models/user.js";
 import { getIO } from "../config/socketConfig.js";
 import { uploadMedia, deleteMedia } from "../services/mediaService.js";
-import { deactivateNotifications } from "../services/notificationService.js";
+import { deactivateNotifications } from "../services/notificationService.js"; 
 
 // Hàm xử lý tìm mentions trong nội dung
 const extractMentions = async (content) => {
@@ -76,6 +76,7 @@ export const createPost = async (req, res) => {
     });
 
     await newPost.save();
+
     const populatedPost = await Post.findById(newPost._id).populate(
       "author",
       "firstName lastName avatar"
