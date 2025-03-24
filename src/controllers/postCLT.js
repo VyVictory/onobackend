@@ -209,9 +209,10 @@ export const getPostByRange = async (req, res) => {
 
     // Truy vấn danh sách bài viết
     const posts = await Post.find({})
-      .sort({ createdAt: -1 })
-      .skip(startIndex)
-      .limit(limitCount)
+  .populate('author', 'name email avatar') // Chỉ populate các trường cần thiết
+  .sort({ createdAt: -1 })
+  .skip(startIndex)
+  .limit(limitCount);
 
     if (!posts || posts.length === 0) {
       return res.status(200).json({ message: "No posts found", posts: [] });
