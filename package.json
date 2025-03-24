@@ -4,8 +4,8 @@
   "description": "A Node.js API backend project",
   "main": "src/index.js",
   "scripts": {
-    "start": "node -r @babel/register src/index.js",
-    "dev": "nodemon -r @babel/register src/index.js"
+    "start": "node -r @babel/register -r dotenv/config src/index.js",
+    "dev": "nodemon -r @babel/register -r dotenv/config src/index.js"
   },
   "dependencies": {
     "@babel/core": "^7.26.9",

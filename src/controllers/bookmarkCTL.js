@@ -1,4 +1,4 @@
-import Bookmark from '../models/bookmark';
+import Bookmark from '../models/bookmark'
 
 // Lưu bài viết
 export const savePost = async (req, res) => {
