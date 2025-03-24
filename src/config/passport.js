@@ -17,8 +17,13 @@ const getOAuthConfig = async () => {
 
 (async () => {
   try {
-    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CALLBACK_URL,JWT_SECRET } =
-      await getOAuthConfig();
+    const {
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      CALLBACK_URL,
+      JWT_SECRET,
+      CALLBACK_URL_FRONTEND,
+    } = await getOAuthConfig();
     passport.use(
       new GoogleStrategy(
         {
@@ -86,7 +91,7 @@ const getOAuthConfig = async () => {
 // Thêm route xử lý callback từ Google
 export const handleGoogleCallback = (req, res) => {
   const { token } = req.user;
-  res.redirect(`https://ono-ono.vercel.app/auth/callback?token=${token}`);
+  res.redirect(`${CALLBACK_URL_FRONTEND}/login/gettoken?token=${token}`);
 };
 
 // Đảm bảo export passport để sử dụng ở nơi khác
