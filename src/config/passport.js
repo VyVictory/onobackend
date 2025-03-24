@@ -35,7 +35,7 @@ const getOAuthConfig = async () => {
           passReqToCallback: true,
           scope: ["profile", "email"],
         },
-        async (req, accessToken, refreshToken, profile, done) => {
+        async (req, accessToken, refreshToken, profile, next) => {
           try {
             let user = await User.findOne({ email: profile.emails[0].value });
 
@@ -59,7 +59,6 @@ const getOAuthConfig = async () => {
               await user.save();
             }
 
-
             // Tạo JWT token
             const token = jwt.sign(
               {
@@ -68,22 +67,23 @@ const getOAuthConfig = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              'longtimenosee',
+              "longtimenosee",
               { expiresIn: "24h" }
             );
 
             // Gán user và token vào req để sử dụng sau này
             req.user = { token, user };
-            return done(null, req.user);
+            next();
           } catch (error) {
             console.error("❌ Google OAuth Error:", error.message);
-            return done(error, false);
+            next();
           }
         }
       )
     );
   } catch (error) {
     console.error("❌ Error loading OAuth configuration:", error);
+    next();
   }
 })();
 
