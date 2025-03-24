@@ -2,10 +2,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import User from "../models/user.js";
 import jwt from "jsonwebtoken";
-import Config from "../models/config.js"; // Import model cấu hình
-import express from "express";
-
-const router = express.Router();
+import Config from "../models/config.js";
 
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
@@ -13,7 +10,7 @@ if (process.env.NODE_ENV !== "production") {
 
 // Lấy dữ liệu OAuth từ MongoDB
 const getOAuthConfig = async () => {
-  const config = await Config.findOne(); // Lấy config đầu tiên
+  const config = await Config.findOne();
   if (!config) throw new Error("OAuth configuration not found in MongoDB");
   return config;
 };
@@ -38,36 +35,31 @@ const getOAuthConfig = async () => {
           passReqToCallback: true,
           scope: ["profile", "email"],
         },
-        async (request, accessToken, refreshToken, profile, done) => {
-          console.log(profile);
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             let user = await User.findOne({ email: profile.emails[0].value });
 
             if (!user) {
-              // Tạo user mới với thông tin từ Google
               const names = profile.displayName.split(" ");
-              const firstName = names[0];
-              const lastName = names.slice(1).join(" ");
-
               user = new User({
-                firstName: firstName || profile.name.givenName,
-                lastName: lastName || profile.name.familyName,
+                firstName: names[0] || profile.name.givenName,
+                lastName: names.slice(1).join(" ") || profile.name.familyName,
                 email: profile.emails[0].value,
                 avatar: profile.photos[0]?.value,
                 googleId: profile.id,
                 status: true,
                 gender: "Other",
-                birthDate: new Date("2000-01-01"), // Ngày mặc định
+                birthDate: new Date("2000-01-01"),
               });
               await user.save();
             } else {
-              // Cập nhật thông tin Google nếu user đã tồn tại
               user.googleId = profile.id;
               user.avatar = profile.photos[0]?.value || user.avatar;
               user.status = true;
               await user.save();
             }
-            console.log("🔑 JWT_SECRET:", JWT_SECRET);
+
+
             // Tạo JWT token
             const token = jwt.sign(
               {
@@ -76,15 +68,16 @@ const getOAuthConfig = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              JWT_SECRET,
+              'emiton',
               { expiresIn: "24h" }
             );
 
-            request.res.redirect(
-              `${CALLBACK_URL_FRONTEND}/login?token=${token}`
-            );
+            // Gán user và token vào req để sử dụng sau này
+            req.user = { token, user };
+            return done(null, req.user);
           } catch (error) {
-            return done(error);
+            console.error("❌ Google OAuth Error:", error.message);
+            return done(error, false);
           }
         }
       )

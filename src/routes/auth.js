@@ -7,39 +7,34 @@ import {
   resetPassword,
 } from "../controllers/authCTL.js";
 import passport from "../config/passport.js";
+import jwt from "jsonwebtoken";
+const authRoutes = express.Router();
 
-const router = express.Router();
+authRoutes.post("/register", register);
+authRoutes.post("/login", login);
 
-router.post("/register", register);
-router.post("/login", login);
+// router.get(
+//   "/google",
+//   passport.authenticate("google", {
+//     scope: ["profile", "email"],
+//     session: false,
+//   })
+// );
 
-// Đăng nhập với Google
-router.get(
-  "/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-    session: false,
-  })
-);
-
-router.get(
+authRoutes.get(
   "/google/callback",
-  passport.authenticate("google", {
-    session: false,
-    failureRedirect: "/login",
-  }),
+  passport.authenticate("google", { session: false }),
   (req, res) => {
     if (!req.user || !req.user.token) {
-      return res.redirect("https://ono-ono.vercel.app/login?error=OAuthFailed");
+      return res.status(401).json({ message: "Authentication failed" });
     }
-    const token = req.user.token;
-    res.redirect(`https://ono-ono.vercel.app/login?token=${token}`);
+    res.redirect(`https://ono-ono.vercel.app/login?token=${req.user.token}`);
   }
 );
 
 // Routes cho quên mật khẩu
-router.post("/forgot-password", forgotPassword);
-router.get("/reset-password/:token", verifyResetToken);
-router.post("/reset-password/:token", resetPassword);
+authRoutes.post("/forgot-password", forgotPassword);
+authRoutes.get("/reset-password/:token", verifyResetToken);
+authRoutes.post("/reset-password/:token", resetPassword);
 
-export default router;
+export default authRoutes;
