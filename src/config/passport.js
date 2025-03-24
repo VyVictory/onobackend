@@ -68,7 +68,7 @@ const getOAuthConfig = async () => {
                 firstName: user.firstName,
                 lastName: user.lastName,
               },
-              'emiton',
+              'longtimenosee',
               { expiresIn: "24h" }
             );
 

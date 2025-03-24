@@ -28,6 +28,7 @@ authRoutes.get(
     if (!req.user || !req.user.token) {
       return res.status(401).json({ message: "Authentication failed" });
     }
+    console.log("token: " + req.user.token);
     res.redirect(`https://ono-ono.vercel.app/login?token=${req.user.token}`);
   }
 );
