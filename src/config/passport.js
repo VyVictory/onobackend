@@ -67,7 +67,7 @@ const getOAuthConfig = async () => {
               user.status = true;
               await user.save();
             }
-
+            console.log("🔑 JWT_SECRET:", JWT_SECRET);
             // Tạo JWT token
             const token = jwt.sign(
               {
@@ -80,7 +80,9 @@ const getOAuthConfig = async () => {
               { expiresIn: "24h" }
             );
 
-            request.res.redirect(`${CALLBACK_URL_FRONTEND}/login?token=${token}`);
+            request.res.redirect(
+              `${CALLBACK_URL_FRONTEND}/login?token=${token}`
+            );
           } catch (error) {
             return done(error);
           }
@@ -91,5 +93,5 @@ const getOAuthConfig = async () => {
     console.error("❌ Error loading OAuth configuration:", error);
   }
 })();
- 
+
 export default passport;
