@@ -212,11 +212,6 @@ export const getPostByRange = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(startIndex)
       .limit(limitCount)
-      .populate("author", "firstName lastName avatar")
-      .populate({
-        path: "comments",
-        populate: { path: "author", select: "firstName lastName avatar" },
-      });
 
     if (!posts || posts.length === 0) {
       return res.status(200).json({ message: "No posts found", posts: [] });
