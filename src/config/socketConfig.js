@@ -12,21 +12,23 @@ export const initSocket = (server) => {
       origin: "*",
       methods: ["GET", "POST"],
     },
-  }); 
+  });
   io.on("connection", (socket) => {
     console.log("🔌 User connected:", socket.id);
-    console.log(onlineUsers)
-    socket.on("authenticate", (userId) => { 
-      if (!userId) return; 
+    console.log(onlineUsers);
+    socket.on("authenticate", (userId) => {
+      if (!userId) return;
       const existingSocket = [...io.sockets.sockets.values()].find(
         (s) => s.userId === userId
       );
-    
+
       if (existingSocket) {
-        console.log(`🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`);
+        console.log(
+          `🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`
+        );
         existingSocket.disconnect(true); // 🔥 Ngắt kết nối socket cũ
       }
-      
+
       socket.userId = userId;
       socket.join(`user_${userId}`);
       onlineUsers.set(userId, true);
@@ -35,7 +37,7 @@ export const initSocket = (server) => {
       notifyWatchers(userId, true);
 
       // Lắng nghe sự kiện hủy thông báo
-      socket.on('notificationDeactivated', async (data) => {
+      socket.on("notificationDeactivated", async (data) => {
         const { notificationId } = data;
         const notification = await Notification.findById(notificationId);
         if (notification && notification.recipient.toString() === userId) {
@@ -60,6 +62,28 @@ export const initSocket = (server) => {
       }));
 
       socket.emit("updateUserStatus", { users });
+    });
+    socket.on("webrtcOffer", ({ offer, receiverId }) => {
+      console.log(
+        `📡 Server nhận Offer từ ${socket.id} và gửi đến ${receiverId}`
+      );
+      io.to(`user_${receiverId}`).emit("webrtcOffer", {
+        offer,
+        senderId: socket.id,
+      });
+    });
+
+    socket.on("webrtcAnswer", ({ answer, senderId }) => {
+      if (!socket.userId) return; // Kiểm tra userId trước khi gửi tín hiệu
+      io.to(`user_${senderId}`).emit("webrtcAnswer", {
+        answer,
+        receiverId: socket.userId,
+      });
+    });
+
+    socket.on("webrtcCandidate", ({ candidate, receiverId }) => {
+      console.log(`📡 Gửi ICE Candidate từ ${socket.id} đến ${receiverId}`);
+      io.to(`user_${receiverId}`).emit("webrtcCandidate", { candidate });
     });
 
     socket.on("openChat", async ({ userId, partnerId }) => {
