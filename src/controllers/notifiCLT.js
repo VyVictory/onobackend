@@ -1,114 +1,125 @@
-import express from 'express';
-import authMiddleware from '../middleware/authMiddleware.js';
-import User from '../models/user.js';
-import Notification from '../models/notification.js';
+import express from "express";
+import authMiddleware from "../middleware/authMiddleware.js";
+import User from "../models/user.js";
+import Notification from "../models/notification.js";
 
 const router = express.Router();
 
 // Tắt thông báo tin nhắn
 export const toggleNotification = async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        user.notificationsEnabled = !user.notificationsEnabled;
-        await user.save();
+  try {
+    const user = await User.findById(req.user.id);
+    user.notificationsEnabled = !user.notificationsEnabled;
+    await user.save();
 
-        res.json({ message: 'Notification setting updated', notificationsEnabled: user.notificationsEnabled });
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating notification setting', error });
-    }
+    res.json({
+      message: "Notification setting updated",
+      notificationsEnabled: user.notificationsEnabled,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error updating notification setting", error });
+  }
 };
 
 // Lấy danh sách thông báo
 export const getNotifications = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+  try {
+    const userId = req.user._id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-        const notifications = await Notification.find({
-            recipient: userId,
-            isActive: true // Chỉ lấy thông báo còn active
-        })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .populate('sender', 'firstName lastName avatar')
-        .populate('referenceId');
+    const notifications = await Notification.find({
+      recipient: userId,
+      isActive: true, // Chỉ lấy thông báo còn active
+    })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("sender", "firstName lastName avatar")
+      .populate("referenceId");
 
-        // Lọc bỏ các thông báo có reference không tồn tại
-        const filteredNotifications = notifications.filter(
-            notification => notification.referenceId != null
-        );
+    // Lọc bỏ các thông báo có reference không tồn tại
+    const filteredNotifications = notifications.filter(
+      (notification) => notification.referenceId != null
+    );
 
-        res.json(filteredNotifications);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+    res.json(filteredNotifications);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const getNotificationsByRange = async (req, res) => {
-    try {
-        const { start, limit } = req.query;
-        const startIndex = parseInt(start) || 0; // Mặc định từ 0
-        const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
-        
-        // 📌 Truy vấn tất cả thông báo chưa đọc của user
-        const totalUnreadCount = await Notification.countDocuments({ recipient: req.user._id, read: false });
+  try {
+    const { start, limit } = req.query;
+    const startIndex = parseInt(start) || 0; // Mặc định từ 0
+    const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
 
-        // 📌 Lấy danh sách thông báo theo phạm vi (phân trang)
-        const notifications = await Notification.find({ recipient: req.user._id })
-            .sort({ createdAt: -1 })
-            .skip(startIndex) // Bỏ qua số thông báo đã xem
-            .limit(limitCount) // Giới hạn số lượng thông báo cần lấy
-            // .populate('sender')
-            // .populate('reference');
+    // 📌 Truy vấn tất cả thông báo chưa đọc của user
+    const totalUnreadCount = await Notification.countDocuments({
+      recipient: req.user._id,
+      read: false,
+    });
 
-        if (!notifications.length) {
-            return res.status(200).json({ unreadCount: totalUnreadCount, notifications: [] });
-        }
+    // 📌 Lấy danh sách thông báo theo phạm vi (phân trang)
+    const notifications = await Notification.find({ recipient: req.user._id })
+      .sort({ createdAt: -1 })
+      .skip(startIndex) // Bỏ qua số thông báo đã xem
+      .limit(limitCount) // Giới hạn số lượng thông báo cần lấy
+      .populate("sender" ,"_id avatar lastName firstName") 
 
-        // 📌 Nhóm thông báo theo ngày
-        const groupedNotifications = {};
-        notifications.forEach((notification) => {
-            const dayKey = notification.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
-            if (!groupedNotifications[dayKey]) {
-                groupedNotifications[dayKey] = { notifications: [] };
-            }
-            groupedNotifications[dayKey].notifications.push(notification);
-        });
-
-        // 📌 Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
-        const result = Object.entries(groupedNotifications).map(([date, { notifications }]) => ({
-            date,
-            notifications,
-        }));
-
-        // 📌 Trả về tổng số thông báo chưa đọc + danh sách thông báo
-        res.json({ unreadCount: totalUnreadCount, notifications: result });
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching notifications', error });
+    if (!notifications.length) {
+      return res
+        .status(200)
+        .json({ unreadCount: totalUnreadCount, notifications: [] });
     }
-};
 
+    // 📌 Nhóm thông báo theo ngày
+    const groupedNotifications = {};
+    notifications.forEach((notification) => {
+      const dayKey = notification.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
+      if (!groupedNotifications[dayKey]) {
+        groupedNotifications[dayKey] = { notifications: [] };
+      }
+      groupedNotifications[dayKey].notifications.push(notification);
+    });
+
+    // 📌 Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
+    const result = Object.entries(groupedNotifications).map(
+      ([date, { notifications }]) => ({
+        date,
+        notifications,
+      })
+    );
+
+    // 📌 Trả về tổng số thông báo chưa đọc + danh sách thông báo
+    res.json({ unreadCount: totalUnreadCount, notifications: result });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching notifications", error });
+  }
+};
 
 // Đánh dấu thông báo đã đọc
 export const markAsRead = async (req, res) => {
-    try {
-        const { notificationId } = req.params;
-        
-        const notification = await Notification.findOneAndUpdate(
-            { _id: notificationId, recipient: req.user._id },
-            { read: true },
-            { new: true }
-        );
+  try {
+    const { notificationId } = req.params;
 
-        if (!notification) {
-            return res.status(404).json({ message: 'Notification not found' });
-        }
+    const notification = await Notification.findOneAndUpdate(
+      { _id: notificationId, recipient: req.user._id },
+      { read: true },
+      { new: true }
+    );
 
-        res.json(notification);
-    } catch (error) {
-        res.status(500).json({ message: 'Error marking notification as read', error });
+    if (!notification) {
+      return res.status(404).json({ message: "Notification not found" });
     }
-};
 
+    res.json(notification);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error marking notification as read", error });
+  }
+};

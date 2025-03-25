@@ -238,8 +238,9 @@ export const getFriendsMess = async (req, res) => {
   try {
     const { start = 0, limit = 5, name } = req.query;
     const userId = req.user._id;
-    const startIndex = start || 0;
-    const limitCount = limit || 5;
+    const startIndex = parseInt(start) || 0; // Ensure start is an integer
+    const limitCount = parseInt(limit) || 5; // Ensure limit is an integer
+
     // Kiểm tra tên tìm kiếm, nếu không có thì trả về lỗi
     if (name && name.trim() === "") {
       return res.status(400).json({ message: "Tên tìm kiếm không hợp lệ" });
@@ -271,10 +272,10 @@ export const getFriendsMess = async (req, res) => {
     }
 
     // Tìm chỉ các friendship có các yêu cầu khớp chính xác
-    const friendships = await Friendship.find(query)
-      .skip(parseInt(startIndex)) // Dùng startIndex để phân trang
-      .limit(parseInt(limitCount)) // Lấy đúng số lượng bạn bè
-      .populate("users", "firstName lastName avatar email");
+    const friendships = await Friendship.find(query).populate(
+      "users",
+      "firstName lastName avatar email"
+    );
 
     // Lọc danh sách bạn bè, loại bỏ chính user hiện tại
     const friends = friendships.map((friendship) => {
@@ -286,15 +287,17 @@ export const getFriendsMess = async (req, res) => {
     // Lấy tin nhắn gần nhất giữa người dùng và mỗi bạn bè
     const friendsWithLastMessage = await Promise.all(
       friends.map(async (friend) => {
+        // Lấy tin nhắn gần nhất
         const lastMessage = await Message.findOne({
           $or: [
             { sender: userId, receiver: friend._id },
             { sender: friend._id, receiver: userId },
           ],
         }).sort({ createdAt: -1 }); // Sắp xếp theo thời gian gửi tin nhắn gần nhất
+
         return {
           ...friend.toObject(),
-          lastMessage,
+          lastMessage: lastMessage || null, // Nếu không có tin nhắn thì trả về null
         };
       })
     );
@@ -306,15 +309,19 @@ export const getFriendsMess = async (req, res) => {
       return lastMessageB - lastMessageA; // Sắp xếp giảm dần
     });
 
-    // Kiểm tra xem có bạn bè dư ra không để xác định hasMore
-    const hasMore = friendsWithLastMessage.length > parseInt(limitCount);
-    if (hasMore) friendsWithLastMessage.pop(); // Nếu có, xóa bạn bè dư ra để đúng limit
+    // Áp dụng phân trang sau khi đã sắp xếp
+    const paginatedFriends = friendsWithLastMessage.slice(
+      startIndex,
+      startIndex + limitCount
+    );
 
-    // Lấy tổng số bạn bè để trả về
+    // Kiểm tra xem có bạn bè dư ra không để xác định hasMore
     const total = await Friendship.countDocuments(query); // Đếm tổng số bạn bè mà query lọc ra
 
+    const hasMore = total > startIndex + limitCount; // Kiểm tra nếu có bạn bè dư ra
+
     res.json({
-      friends: friendsWithLastMessage,
+      friends: paginatedFriends,
       total,
       hasMore,
     });
