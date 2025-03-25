@@ -54,27 +54,25 @@ export const getNotifications = async (req, res) => {
 export const getNotificationsByRange = async (req, res) => {
   try {
     const { start, limit } = req.query;
-    const startIndex = parseInt(start) || 0; // Mặc định từ 0
-    const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
-
-    // 📌 Truy vấn tất cả thông báo chưa đọc của user
-    const totalUnreadCount = await Notification.countDocuments({
-      recipient: req.user._id,
-      read: false,
-    });
+    const startIndex = parseInt(start) || 0; // Default start from 0
+    const limitCount = parseInt(limit) || 20; // Default limit to 20 notifications
 
     // 📌 Lấy danh sách thông báo theo phạm vi (phân trang)
     const notifications = await Notification.find({ recipient: req.user._id })
       .sort({ createdAt: -1 })
-      .skip(startIndex) // Bỏ qua số thông báo đã xem
-      .limit(limitCount) // Giới hạn số lượng thông báo cần lấy
-      .populate("sender" ,"_id avatar lastName firstName") 
+      .skip(startIndex) // Skip the number of notifications already fetched
+      .limit(limitCount) // Limit the number of notifications to fetch
+      .populate("sender", "_id avatar lastName firstName");
 
     if (!notifications.length) {
-      return res
-        .status(200)
-        .json({ unreadCount: totalUnreadCount, notifications: [] });
+      return res.status(200).json({ unreadCount: 0, notifications: [] });
     }
+
+    // 📌 Truy vấn tổng số thông báo chưa đọc
+    const totalUnreadCount = await Notification.countDocuments({
+      recipient: req.user._id,
+      read: false,
+    });
 
     // 📌 Nhóm thông báo theo ngày
     const groupedNotifications = {};
@@ -108,7 +106,7 @@ export const markAsRead = async (req, res) => {
 
     const notification = await Notification.findOneAndUpdate(
       { _id: notificationId, recipient: req.user._id },
-      { read: true },
+      { isRead: true },
       { new: true }
     );
 
