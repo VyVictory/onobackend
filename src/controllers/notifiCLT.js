@@ -71,7 +71,7 @@ export const getNotificationsByRange = async (req, res) => {
     // 📌 Truy vấn tổng số thông báo chưa đọc
     const totalUnreadCount = await Notification.countDocuments({
       recipient: req.user._id,
-      read: false,
+      isRead: false,
     });
 
     // 📌 Nhóm thông báo theo ngày

@@ -64,7 +64,7 @@ export const sendFriendRequest = async (req, res) => {
       recipient: recipientId,
       sender: requesterId,
       type: "FRIEND_REQUEST",
-      referenceId: newFriendship._id,
+      reference: newFriendship._id,
       referenceModel: "Friendship",
       content: `${requester.firstName} ${requester.lastName} đã gửi lời mời kết bạn`,
     });
