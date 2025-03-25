@@ -1,6 +1,7 @@
 import User from "../models/user.js";
 import Friendship from "../models/friendship.js";
 import mongoose from "mongoose";
+import cloudinary from '../config/cloudinaryConfig.js';
 
 const offUser = () => ({
   status: true,
@@ -173,5 +174,94 @@ export const searchUsers = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ message: 'Lỗi khi tìm kiếm người dùng', error: error.message });
+    }
+};
+
+export const updateUserProfile = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const {
+            firstName,
+            lastName,
+            gender,
+            email,
+            birthDate,
+            education,
+            street,
+            ward,
+            district,
+            city,
+            country,
+            phoneNumber,
+            title,
+        } = req.body;
+
+        const updateData = {
+            firstName,
+            lastName,
+            gender,
+            email,
+            birthDate,
+            education,
+            address:{
+              street,
+              ward,
+              district,
+              city,
+              country
+            },
+            phoneNumber,
+            title,
+        };
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+          return res.status(400).json({ 
+              message: 'ID người dùng không hợp lệ' 
+          });
+      }
+        // Xử lý upload avatar nếu có
+        if (req.files?.avatar) {
+          const avatarResult = await cloudinary.uploader.upload(
+              req.files.avatar[0].path,
+              {
+                  folder: 'ono/avatars',
+                  transformation: [
+                      { width: 500, height: 500, crop: "fill" }
+                  ]
+              }
+          );
+          updateData.avatar = avatarResult.secure_url;
+      }
+
+      // Xử lý upload ảnh bìa
+      if (req.files?.coverPhoto) {
+          const coverResult = await cloudinary.uploader.upload(
+              req.files.coverPhoto[0].path,
+              {
+                  folder: 'ono/covers',
+                  transformation: [
+                      { width: 1920, height: 1080, crop: "fill" }
+                  ]
+              }
+          );
+          updateData.coverPhoto = coverResult.secure_url;
+      }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+        }
+
+        res.json(updatedUser);
+    } catch (error) {
+        console.error('Update user error:', error);
+        res.status(500).json({ 
+            message: 'Lỗi khi cập nhật thông tin người dùng',
+            error: error.message 
+        });
     }
 };

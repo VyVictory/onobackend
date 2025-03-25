@@ -121,3 +121,106 @@ export const markAsRead = async (req, res) => {
       .json({ message: "Error marking notification as read", error });
   }
 };
+
+export const getNotificationsByType = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { type } = req.params;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+
+        const query = {
+            recipient: userId,
+            isActive: true
+        };
+
+        // Thêm điều kiện type nếu được chỉ định
+        if (type && type !== 'all') {
+            query.type = type.toUpperCase();
+        }
+
+        const notifications = await Notification.find(query)
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .populate('sender', 'firstName lastName avatar')
+            .populate({
+                path: 'reference',
+                populate: {
+                    path: 'sender receiver', // Cho FriendRequest
+                    select: 'firstName lastName avatar'
+                }
+            });
+
+        // Lọc và format thông báo theo loại
+        const formattedNotifications = notifications.map(notification => {
+            const baseNotification = {
+                _id: notification._id,
+                sender: notification.sender,
+                type: notification.type,
+                content: notification.content,
+                isRead: notification.isRead,
+                createdAt: notification.createdAt
+            };
+
+            switch (notification.type) {
+                case 'FRIEND_REQUEST':
+                    return {
+                        ...baseNotification,
+                        friendRequest: notification.reference
+                    };
+                case 'MESSAGE':
+                    return {
+                        ...baseNotification,
+                        message: {
+                            content: notification.reference?.content,
+                            messageType: notification.reference?.messageType
+                        }
+                    };
+                case 'POST':
+                    return {
+                        ...baseNotification,
+                        post: {
+                            _id: notification.reference?._id,
+                            content: notification.reference?.content?.substring(0, 100)
+                        }
+                    };
+                case 'COMMENT':
+                    return {
+                        ...baseNotification,
+                        comment: {
+                            _id: notification.reference?._id,
+                            content: notification.reference?.content?.substring(0, 100)
+                        }
+                    };
+                case 'LIKE':
+                    return {
+                        ...baseNotification,
+                        like: {
+                            _id: notification.reference?._id,
+                            content: notification.reference?.content?.substring(0, 100)
+                        }
+                    };
+                case 'NEW_FOLLOWER':
+                    return {
+                        ...baseNotification,
+                        newFollower: {
+                            _id: notification.reference?._id,
+                            content: notification.reference?.content?.substring(0, 100)
+                        }
+                    };
+                default:
+                    return baseNotification;
+            }
+        });
+
+        res.json({
+            notifications: formattedNotifications,
+            page,
+            limit,
+            total: await Notification.countDocuments(query)
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
