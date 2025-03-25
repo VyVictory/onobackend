@@ -5,7 +5,7 @@ export const createNotification = async ({
     recipient,
     sender,
     type,
-    referenceId,
+    reference,
     referenceModel,
     content
 }) => {
@@ -14,7 +14,7 @@ export const createNotification = async ({
         await Notification.deleteMany({
             recipient,
             type,
-            referenceId,
+            reference,
             isRead: false
         });
 
@@ -23,7 +23,7 @@ export const createNotification = async ({
             recipient,
             sender,
             type,
-            referenceId,
+            reference,
             referenceModel,
             content
         });
@@ -42,16 +42,16 @@ export const createNotification = async ({
     }
 };
 
-export const deactivateNotifications = async (referenceId) => {
+export const deactivateNotifications = async (reference) => {
     try {
         const notifications = await Notification.find({ 
-            referenceId,
+            reference,
             isRead: false
         });
 
         if (notifications.length > 0) {
             await Notification.updateMany(
-                { referenceId },
+                { reference },
                 { $set: { isActive: false } }
             );
 

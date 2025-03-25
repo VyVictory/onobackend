@@ -46,6 +46,6 @@ const notificationSchema = new mongoose.Schema(
 // Thêm index để tối ưu việc tìm kiếm
 notificationSchema.index({ recipient: 1, read: 1 });
 notificationSchema.index({ recipient: 1, createdAt: -1 });
-notificationSchema.index({ recipient: 1, type: 1, referenceId: 1 });
+notificationSchema.index({ recipient: 1, type: 1, reference: 1 });
 
 export default mongoose.model("Notification", notificationSchema);

@@ -38,11 +38,11 @@ export const getNotifications = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .populate("sender", "firstName lastName avatar")
-      .populate("referenceId");
+      .populate("reference");
 
     // Lọc bỏ các thông báo có reference không tồn tại
     const filteredNotifications = notifications.filter(
-      (notification) => notification.referenceId != null
+      (notification) => notification.reference != null
     );
 
     res.json(filteredNotifications);
