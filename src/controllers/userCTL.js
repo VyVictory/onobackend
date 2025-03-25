@@ -1,7 +1,7 @@
 import User from "../models/user.js";
 import Friendship from "../models/friendship.js";
 import mongoose from "mongoose";
-import cloudinary from '../config/cloudinaryConfig.js';
+import cloudinary from "../config/cloudinaryConfig.js";
 
 const offUser = () => ({
   status: true,
@@ -34,7 +34,7 @@ export const getCurrentUser = async (req, res) => {
   try {
     // Tìm user theo ID và loại bỏ password
     // console.log(req.user._id)
-    const myId = req?.user?._id; 
+    const myId = req?.user?._id;
     const id = req.params.id; // Lấy trực tiếp ID
 
     const user = await User.findOne({ _id: id, ...offUser() })
@@ -142,126 +142,114 @@ export const searchFriendsForMention = async (req, res) => {
 
 // Tìm kiếm người dùng với phân trang
 export const searchUsers = async (req, res) => {
-    try {
-        const { search, start = 0, limit = 10 } = req.query;
-        const currentUserId = req.user._id;
+  try {
+    const { search, start = 0, limit = 10 } = req.query;
+    const currentUserId = req.user._id;
 
-        const query = search ? {
-            $and: [
-                {
-                    $or: [
-                        { firstName: { $regex: search, $options: 'i' } },
-                        { lastName: { $regex: search, $options: 'i' } },
-                        { email: { $regex: search, $options: 'i' } }
-                    ]
-                },
-                { _id: { $ne: currentUserId } } // Loại trừ user hiện tại
-            ]
-        } : { _id: { $ne: currentUserId } };
+    const query = search
+      ? {
+          $and: [
+            {
+              $or: [
+                { firstName: { $regex: search, $options: "i" } },
+                { lastName: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+              ],
+            },
+            { _id: { $ne: currentUserId } }, // Loại trừ user hiện tại
+          ],
+        }
+      : { _id: { $ne: currentUserId } };
 
-        const users = await User.find(query)
-            .select('firstName lastName avatar email')
-            .sort({ firstName: 1, lastName: 1 })
-            .skip(parseInt(start))
-            .limit(parseInt(limit));
+    const users = await User.find(query)
+      .select("firstName lastName avatar email")
+      .sort({ firstName: 1, lastName: 1 })
+      .skip(parseInt(start))
+      .limit(parseInt(limit));
 
-        const total = await User.countDocuments(query);
+    const total = await User.countDocuments(query);
 
-        res.json({
-            users,
-            total,
-            hasMore: total > parseInt(start) + users.length
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi khi tìm kiếm người dùng', error: error.message });
-    }
+    res.json({
+      users,
+      total,
+      hasMore: total > parseInt(start) + users.length,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi tìm kiếm người dùng", error: error.message });
+  }
 };
 
 export const updateUserProfile = async (req, res) => {
-    try {
-        const userId = req.params.id;
-        const {
-            firstName,
-            lastName,
-            gender,
-            email,
-            birthDate,
-            education,
-            street,
-            ward,
-            district,
-            city,
-            country,
-            phoneNumber,
-            title,
-        } = req.body;
-
-        const updateData = {
-            firstName,
-            lastName,
-            gender,
-            email,
-            birthDate,
-            education,
-            address:{
-              street,
-              ward,
-              district,
-              city,
-              country
-            },
-            phoneNumber,
-            title,
-        };
-        if (!mongoose.Types.ObjectId.isValid(userId)) {
-          return res.status(400).json({ 
-              message: 'ID người dùng không hợp lệ' 
-          });
-      }
-        // Xử lý upload avatar nếu có
-        if (req.files?.avatar) {
-          const avatarResult = await cloudinary.uploader.upload(
-              req.files.avatar[0].path,
-              {
-                  folder: 'ono/avatars',
-                  transformation: [
-                      { width: 500, height: 500, crop: "fill" }
-                  ]
-              }
-          );
-          updateData.avatar = avatarResult.secure_url;
-      }
-
-      // Xử lý upload ảnh bìa
-      if (req.files?.coverPhoto) {
-          const coverResult = await cloudinary.uploader.upload(
-              req.files.coverPhoto[0].path,
-              {
-                  folder: 'ono/covers',
-                  transformation: [
-                      { width: 1920, height: 1080, crop: "fill" }
-                  ]
-              }
-          );
-          updateData.coverPhoto = coverResult.secure_url;
-      }
-
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { $set: updateData },
-            { new: true, runValidators: true }
-        ).select('-password');
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-        }
-
-        res.json(updatedUser);
-    } catch (error) {
-        console.error('Update user error:', error);
-        res.status(500).json({ 
-            message: 'Lỗi khi cập nhật thông tin người dùng',
-            error: error.message 
-        });
+  try {
+    const userId = req.user?._id;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "ID người dùng không hợp lệ" });
     }
+
+    // Lấy dữ liệu từ request body
+    const {
+      firstName,
+      lastName,
+      gender,
+      title,
+      birthDate,
+      education,
+      street,
+      ward,
+      district,
+      city,
+      country,
+      email,
+      phoneNumber,
+    } = req.body;
+
+    // Tạo đối tượng cập nhật
+    const updateData = {
+      firstName,
+      lastName,
+      gender,
+      email,
+      birthDate,
+      education,
+      address: { street, ward, district, city, country },
+      phoneNumber,
+      title,
+    };
+
+    // ✅ Xử lý upload avatar
+    if (req.files?.avatar) {
+      const avatarUpload = await cloudinary.uploader.upload(req.files.avatar[0].path, {
+        folder: "ono/avatars",
+        transformation: [{ width: 500, height: 500, crop: "fill" }],
+      });
+      updateData.avatar = avatarUpload.secure_url;
+    }
+
+    // ✅ Xử lý upload ảnh bìa (coverPhoto)
+    if (req.files?.coverPhoto) {
+      const coverUpload = await cloudinary.uploader.upload(req.files.coverPhoto[0].path, {
+        folder: "ono/covers",
+        transformation: [{ width: 1920, height: 1080, crop: "fill" }],
+      });
+      updateData.coverPhoto = coverUpload.secure_url;
+    }
+
+    // ✅ Cập nhật user trong database
+    const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateData }, { new: true, runValidators: true })
+      .select("-password"); // Loại bỏ password khỏi dữ liệu trả về
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error("Lỗi cập nhật thông tin người dùng:", error);
+    res.status(500).json({
+      message: "Lỗi khi cập nhật thông tin người dùng",
+      error: error.message,
+    });
+  }
 };

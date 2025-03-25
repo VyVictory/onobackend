@@ -28,6 +28,6 @@ routerUser.get("/profile/:id",authGetProfile, getCurrentUser); //xem profile ng∆
 routerUser.get("/finduser/:name", getUsersByUsername);
 routerUser.get('/mention-suggestions', authMiddleware, searchFriendsForMention);
 routerUser.get('/search', authMiddleware, searchUsers);
-routerUser.put('/profile/:id/update', authMiddleware,uploadUserPhotos, updateUserProfile);
+routerUser.put('/profile/update', authMiddleware,uploadUserPhotos, updateUserProfile);
 
 export default routerUser;

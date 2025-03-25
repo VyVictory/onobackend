@@ -5,6 +5,7 @@ import multer from 'multer';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../config/cloudinaryConfig.js';
 import path from 'path';
+import authGetProfile from '../middleware/authGetProfile.js';
 
 const storage = new CloudinaryStorage({
     cloudinary: cloudinary,
@@ -42,7 +43,7 @@ routerPost.post('/:postId/send', authMiddleware, sharePost);
 routerPost.post('/:postId/recall', authMiddleware, recallPost);
 routerPost.get('/getpost/:postId', authMiddleware, getPost);
 routerPost.get('/all', authMiddleware, getPosts);
-routerPost.get('/postByRange', authMiddleware, getPostByRange);
+routerPost.get('/postByRange', authGetProfile, getPostByRange);
 routerPost.post('/:postId/like', authMiddleware, likePost);
 routerPost.delete('/:postId', authMiddleware, deletePost);
 routerPost.put('/:postId', upload.array('media', 10), authMiddleware, updatePost);
