@@ -64,27 +64,35 @@ export const initSocket = (server) => {
       socket.emit("updateUserStatus", { users });
     });
     socket.on("webrtcOffer", ({ offer, receiverId }) => {
-      console.log(
-        `📡 Server nhận Offer từ ${socket.id} và gửi đến ${receiverId}`
-      );
+      if (!receiverId) return console.warn("⚠️ Thiếu receiverId trong webrtcOffer!");
+    
+      console.log(`📡 Server nhận Offer từ ${socket.id} và gửi đến ${receiverId}`);
       io.to(`user_${receiverId}`).emit("webrtcOffer", {
         offer,
-        senderId: socket.id,
+        senderId: socket.id, // Đảm bảo có senderId để client xử lý
       });
     });
-
+    
     socket.on("webrtcAnswer", ({ answer, senderId }) => {
-      if (!socket.userId) return; // Kiểm tra userId trước khi gửi tín hiệu
+      if (!senderId) return console.warn("⚠️ Thiếu senderId trong webrtcAnswer!");
+    
+      console.log(`📡 Server nhận Answer từ ${socket.id} và gửi đến ${senderId}`);
       io.to(`user_${senderId}`).emit("webrtcAnswer", {
         answer,
-        receiverId: socket.userId,
+        receiverId: socket.userId, // Đảm bảo có receiverId hợp lệ
       });
     });
-
+    
     socket.on("webrtcCandidate", ({ candidate, receiverId }) => {
+      if (!receiverId) return console.warn("⚠️ Thiếu receiverId trong webrtcCandidate!");
+    
       console.log(`📡 Gửi ICE Candidate từ ${socket.id} đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("webrtcCandidate", { candidate });
+      io.to(`user_${receiverId}`).emit("webrtcCandidate", {
+        candidate,
+        senderId: socket.id, // Thêm senderId để client xác định nguồn gốc
+      });
     });
+    
 
     socket.on("openChat", async ({ userId, partnerId }) => {
       try {

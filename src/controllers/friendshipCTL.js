@@ -60,24 +60,38 @@ export const sendFriendRequest = async (req, res) => {
     await newFriendship.save();
 
     // Tạo thông báo
-    await createNotification({
+    const notification = await createNotification({
       recipient: recipientId,
       sender: requesterId,
       type: "FRIEND_REQUEST",
       reference: newFriendship._id,
       referenceModel: "Friendship",
       content: `${requester.firstName} ${requester.lastName} đã gửi lời mời kết bạn`,
+      isActive: true,
+      isRead: false,
     });
 
     // Gửi thông báo realtime
     getIO()
       .to(`user_${recipientId}`)
       .emit("notification", {
+        _id: notification._id,
         type: "FRIEND_REQUEST",
-        notification: await newFriendship.populate(
-          "requester",
-          "firstName lastName avatar"
-        ),
+        content: notification.content,
+        createdAt: notification.createdAt,
+        updatedAt: notification.updatedAt,
+        isActive: notification.isActive,
+        isRead: notification.isRead,
+        recipient: notification.recipient,
+        sender: {
+          _id: requester._id,
+          firstName: requester.firstName,
+          lastName: requester.lastName,
+          avatar: requester.avatar || "",
+        },
+        reference: notification.reference,
+        referenceModel: notification.referenceModel,
+        __v: 0,
       });
 
     res.json({
@@ -129,7 +143,7 @@ export const respondToFriendRequest = async (req, res) => {
     await friendship.save();
 
     if (status === "accepted") {
-      // Tạo thông báo chấp nhận kết bạn
+      
       const notification = new Notification({
         recipient: friendship.requester._id,
         sender: userId,
@@ -144,11 +158,23 @@ export const respondToFriendRequest = async (req, res) => {
       getIO()
         .to(`user_${friendship.requester._id}`)
         .emit("notification", {
+          _id: notification._id,
           type: "FRIEND_ACCEPTED",
-          notification: await notification.populate(
-            "sender",
-            "firstName lastName avatar"
-          ),
+          content: notification.content,
+          createdAt: notification.createdAt,
+          updatedAt: notification.updatedAt,
+          isActive: true,
+          isRead: false,
+          recipient: notification.recipient,
+          sender: {
+            _id: req.user._id,
+            firstName: req.user.firstName,
+            lastName: req.user.lastName,
+            avatar: req.user.avatar || "",
+          },
+          reference: notification.reference,
+          referenceModel: notification.referenceModel,
+          __v: 0,
         });
     }
 
