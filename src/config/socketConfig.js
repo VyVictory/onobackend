@@ -53,9 +53,9 @@ export const initSocket = (server) => {
         return;
       }
       console.log(`📡 Gửi offer từ ${socket.userId} đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("offer", offer);
+      io.to(`user_${receiverId}`).emit("offer", { offer }); // ✅ FIXED
     });
-
+    
     socket.on("answer", ({ answer, senderId }) => {
       if (!senderId || !onlineUsers.has(senderId)) {
         console.warn("⚠️ Không thể gửi answer, người gửi không online!");
