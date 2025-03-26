@@ -46,7 +46,33 @@ export const initSocket = (server) => {
         }
       });
     });
+    
+    socket.on("offer", ({ offer, receiverId }) => {
+      if (!receiverId || !onlineUsers.has(receiverId)) {
+        console.warn("⚠️ Không thể gửi offer, người nhận không online!");
+        return;
+      }
+      console.log(`📡 Gửi offer từ ${socket.userId} đến ${receiverId}`);
+      io.to(`user_${receiverId}`).emit("offer", offer);
+    });
 
+    socket.on("answer", ({ answer, senderId }) => {
+      if (!senderId || !onlineUsers.has(senderId)) {
+        console.warn("⚠️ Không thể gửi answer, người gửi không online!");
+        return;
+      }
+      console.log(`📡 Gửi answer từ ${socket.userId} đến ${senderId}`);
+      io.to(`user_${senderId}`).emit("answer", answer);
+    });
+
+    socket.on("ice-candidate", ({ candidate, receiverId }) => {
+      if (!receiverId || !onlineUsers.has(receiverId)) {
+        console.warn("⚠️ Không thể gửi ICE Candidate, người nhận không online!");
+        return;
+      }
+      console.log(`📡 Gửi ICE Candidate từ ${socket.userId} đến ${receiverId}`);
+      io.to(`user_${receiverId}`).emit("ice-candidate", candidate);
+    });
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
       // console.log(`📡 ${socket.id} requested user status:`, userIds);
@@ -63,36 +89,7 @@ export const initSocket = (server) => {
 
       socket.emit("updateUserStatus", { users });
     });
-    socket.on("webrtcOffer", ({ offer, receiverId }) => {
-      if (!receiverId) return console.warn("⚠️ Thiếu receiverId trong webrtcOffer!");
-    
-      console.log(`📡 Server nhận Offer từ ${socket.id} và gửi đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("webrtcOffer", {
-        offer,
-        senderId: socket.id, // Đảm bảo có senderId để client xử lý
-      });
-    });
-    
-    socket.on("webrtcAnswer", ({ answer, senderId }) => {
-      if (!senderId) return console.warn("⚠️ Thiếu senderId trong webrtcAnswer!");
-    
-      console.log(`📡 Server nhận Answer từ ${socket.id} và gửi đến ${senderId}`);
-      io.to(`user_${senderId}`).emit("webrtcAnswer", {
-        answer,
-        receiverId: socket.userId, // Đảm bảo có receiverId hợp lệ
-      });
-    });
-    
-    socket.on("webrtcCandidate", ({ candidate, receiverId }) => {
-      if (!receiverId) return console.warn("⚠️ Thiếu receiverId trong webrtcCandidate!");
-    
-      console.log(`📡 Gửi ICE Candidate từ ${socket.id} đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("webrtcCandidate", {
-        candidate,
-        senderId: socket.id, // Thêm senderId để client xác định nguồn gốc
-      });
-    });
-    
+
 
     socket.on("openChat", async ({ userId, partnerId }) => {
       try {
