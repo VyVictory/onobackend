@@ -47,32 +47,23 @@ export const initSocket = (server) => {
       });
     });
     
-    socket.on("offer", ({ offer, receiverId }) => {
-      if (!receiverId || !onlineUsers.has(receiverId)) {
-        console.warn("⚠️ Không thể gửi offer, người nhận không online!");
-        return;
-      }
-      console.log(`📡 Gửi offer từ ${socket.userId} đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("offer", { offer }); // ✅ FIXED
+    socket.on("join-room", (roomId) => {
+      socket.join(roomId);
+      socket.broadcast.to(roomId).emit("user-joined", socket.id);
     });
-    
-    socket.on("answer", ({ answer, senderId }) => {
-      if (!senderId || !onlineUsers.has(senderId)) {
-        console.warn("⚠️ Không thể gửi answer, người gửi không online!");
-        return;
-      }
-      console.log(`📡 Gửi answer từ ${socket.userId} đến ${senderId}`);
-      io.to(`user_${senderId}`).emit("answer", answer);
+  
+    socket.on("offer", (data) => {
+      socket.to(data.target).emit("offer", { sdp: data.sdp, caller: socket.id });
+    });
+  
+    socket.on("answer", (data) => {
+      socket.to(data.target).emit("answer", { sdp: data.sdp, caller: socket.id });
+    });
+  
+    socket.on("ice-candidate", (data) => {
+      socket.to(data.target).emit("ice-candidate", data.candidate);
     });
 
-    socket.on("ice-candidate", ({ candidate, receiverId }) => {
-      if (!receiverId || !onlineUsers.has(receiverId)) {
-        console.warn("⚠️ Không thể gửi ICE Candidate, người nhận không online!");
-        return;
-      }
-      console.log(`📡 Gửi ICE Candidate từ ${socket.userId} đến ${receiverId}`);
-      io.to(`user_${receiverId}`).emit("ice-candidate", candidate);
-    });
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
       // console.log(`📡 ${socket.id} requested user status:`, userIds);
