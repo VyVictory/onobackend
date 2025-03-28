@@ -49,21 +49,21 @@ export const initSocket = (server) => {
     
     socket.on("join-room", (roomId) => {
       socket.join(roomId);
-      socket.broadcast.to(roomId).emit("user-joined", socket.id);
+      socket.broadcast.to(roomId).emit("user-joined", socket.userId);
     });
-  
+    
     socket.on("offer", (data) => {
-      socket.to(data.target).emit("offer", { sdp: data.sdp, caller: socket.id });
+      socket.to(`user_${data.target}`).emit("offer", { sdp: data.sdp, caller: socket.userId });
     });
-  
+    
     socket.on("answer", (data) => {
-      socket.to(data.target).emit("answer", { sdp: data.sdp, caller: socket.id });
+      socket.to(`user_${data.target}`).emit("answer", { sdp: data.sdp, caller: socket.userId });
     });
-  
+    
     socket.on("ice-candidate", (data) => {
-      socket.to(data.target).emit("ice-candidate", data.candidate);
+      socket.to(`user_${data.target}`).emit("ice-candidate", data.candidate);
     });
-
+    
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
       // console.log(`📡 ${socket.id} requested user status:`, userIds);
