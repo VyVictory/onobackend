@@ -46,24 +46,39 @@ export const initSocket = (server) => {
         }
       });
     });
-    
-    socket.on("join-room", (roomId) => {
-      socket.join(roomId);
-      socket.broadcast.to(roomId).emit("user-joined", socket.userId);
+    socket.on("request-call", (data) => {
+      socket
+        .to(`user_${data.target}`)
+        .emit("request-call", { caller: socket.userId });
     });
-    
+
+    socket.on("call-accept", (data) => {
+      if (data.status === false || data.status === true) {
+        socket
+          .to(`user_${data.target}`)
+          .emit("call-accept", { caller: socket.userId, status: data.status });
+      }
+    });
     socket.on("offer", (data) => {
-      socket.to(`user_${data.target}`).emit("offer", { sdp: data.sdp, caller: socket.userId });
+      socket
+        .to(`user_${data.target}`)
+        .emit("offer", { sdp: data.sdp, caller: socket.userId });
     });
-    
+
     socket.on("answer", (data) => {
-      socket.to(`user_${data.target}`).emit("answer", { sdp: data.sdp, caller: socket.userId });
+      socket
+        .to(`user_${data.target}`)
+        .emit("answer", { sdp: data.sdp, caller: socket.userId });
     });
-    
+
     socket.on("ice-candidate", (data) => {
       socket.to(`user_${data.target}`).emit("ice-candidate", data.candidate);
     });
-    
+    socket.on("end-call", (data) => {
+      console.log("Ending call with user:", data.target);
+      socket.to(`user_${data.target}`).emit("end-call", true);
+    });
+
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
       // console.log(`📡 ${socket.id} requested user status:`, userIds);
@@ -80,7 +95,6 @@ export const initSocket = (server) => {
 
       socket.emit("updateUserStatus", { users });
     });
-
 
     socket.on("openChat", async ({ userId, partnerId }) => {
       try {

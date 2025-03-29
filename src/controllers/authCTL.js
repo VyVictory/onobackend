@@ -131,7 +131,7 @@ export const login = async (req, res) => {
         updatedAt: user.updatedAt,
       },
       SECRET_KEY,
-      { expiresIn: "1h" }
+      { expiresIn: "24h" }
     );
 
     // ✅ Trả về dữ liệu hợp lệ
