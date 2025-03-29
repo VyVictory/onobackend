@@ -45,19 +45,14 @@ export const initSocket = (server) => {
           await notification.save();
         }
       });
-    });
-    socket.on("request-call", (data) => {
-      socket
-        .to(`user_${data.target}`)
-        .emit("request-call", { caller: socket.userId });
-    });
-
+    }); 
     socket.on("call-accept", (data) => {
       if (data.status === false || data.status === true) {
         socket
           .to(`user_${data.target}`)
           .emit("call-accept", { caller: socket.userId, status: data.status });
       }
+      console.log("Call accept status:", socket.userId, data.status);
     });
     socket.on("offer", (data) => {
       socket
