@@ -18,7 +18,6 @@ const postSchema = new mongoose.Schema(
         duration: Number, // cho video
       },
     ],
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     shares: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
     security: {
@@ -33,12 +32,42 @@ const postSchema = new mongoose.Schema(
         endIndex: Number, // Vị trí kết thúc của mention trong content
       },
     ],
+    group: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Group' 
+    },
+    reactionCounts: {
+        like: { type: Number, default: 0 },
+        love: { type: Number, default: 0 },
+        haha: { type: Number, default: 0 },
+        wow: { type: Number, default: 0 },
+        sad: { type: Number, default: 0 },
+        angry: { type: Number, default: 0 }
+    }
   },
   { timestamps: true }
 );
 
 postSchema.index({ content: "text" });
 postSchema.index({ createdAt: -1 });
+
+// Middleware để kiểm tra quyền xem bài đăng
+postSchema.pre('find', function(next) {
+    this._conditions = {
+        ...this._conditions,
+        $or: [
+            { privacy: 'Public' },
+            { privacy: 'Private', author: this._conditions.currentUser },
+            {
+                privacy: 'MyFriend',
+                author: { 
+                    $in: this._conditions.friendIds || [] 
+                }
+            }
+        ]
+    };
+    next();
+});
 
 const Post = mongoose.model("Post", postSchema);
 

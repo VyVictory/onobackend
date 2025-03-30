@@ -120,22 +120,6 @@ export const createPost = async (req, res) => {
   }
 };
 
-// Like bài viết
-export const likePost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    if (!post.likes.includes(req.user.id)) {
-      post.likes.push(req.user.id);
-      await post.save();
-    }
-
-    res.json({ message: "Post liked" });
-  } catch (error) {
-    res.status(500).json({ message: "Error liking post", error });
-  }
-};
 // Share bài viết
 export const sharePost = async (req, res) => {
   try {
@@ -185,11 +169,62 @@ export const getPost = async (req, res) => {
 // Lấy tất cả bài viết
 export const getPosts = async (req, res) => {
   try {
-    const posts = await Post.find();
-    console.log(posts);
-    res.json(posts);
+      const userId = req.user._id;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+
+      // Lấy danh sách bạn bè
+      const user = await User.findById(userId);
+      const friendIds = user.friends.map(friend => friend.toString());
+
+      // Xây dựng query dựa trên quyền xem
+      const query = {
+          $or: [
+              { privacy: 'public' },
+              { privacy: 'private', author: userId },
+              { 
+                  privacy: 'friends', 
+                  author: { $in: friendIds },
+              },
+              {
+                  group: { $exists: true },
+                  $expr: {
+                      $in: [userId, {
+                          $map: {
+                              input: "$group.members",
+                              as: "member",
+                              in: "$$member.user"
+                          }
+                      }]
+                  }
+              }
+          ]
+      };
+
+      const posts = await Post.find(query)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .populate('author', 'firstName lastName avatar')
+          .populate('group', 'name')
+          .populate({
+              path: 'comments',
+              populate: {
+                  path: 'author',
+                  select: 'firstName lastName avatar'
+              }
+          });
+
+      const total = await Post.countDocuments(query);
+
+      res.json({
+          posts,
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+          total
+      });
   } catch (error) {
-    res.status(500).json({ message: "Error fetching posts", error });
+      res.status(500).json({ message: error.message });
   }
 };
 export const getPostByRange = async (req, res) => {

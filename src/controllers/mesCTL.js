@@ -380,3 +380,74 @@ export const editMessage = async (req, res) => {
     });
   }
 };
+
+export const toggleMessageReaction = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const { type } = req.body;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+            return res.status(404).json({ message: 'Không tìm thấy tin nhắn' });
+        }
+
+        // Kiểm tra quyền reaction (phải là người gửi hoặc người nhận)
+        if (![message.sender.toString(), message.receiver.toString()].includes(userId.toString())) {
+            return res.status(403).json({ message: 'Không có quyền tương tác với tin nhắn này' });
+        }
+
+        // Tìm reaction hiện tại
+        const existingReactionIndex = message.reactions.findIndex(
+            r => r.user.toString() === userId.toString()
+        );
+
+        if (existingReactionIndex > -1) {
+            if (message.reactions[existingReactionIndex].type === type) {
+                // Xóa reaction nếu đã tồn tại cùng loại
+                message.reactions.splice(existingReactionIndex, 1);
+            } else {
+                // Cập nhật loại reaction
+                message.reactions[existingReactionIndex].type = type;
+            }
+        } else {
+            // Thêm reaction mới
+            message.reactions.push({ user: userId, type });
+        }
+
+        await message.save();
+
+        // Gửi thông báo realtime
+        getIO().to(`chat_${message.sender}_${message.receiver}`).emit('messageReaction', {
+            messageId: message._id,
+            reactions: message.reactions
+        });
+
+        res.json(message);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Lấy danh sách người reaction
+export const getMessageReactions = async (req, res) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId)
+            .populate('reactions.user', 'firstName lastName avatar');
+
+        if (!message) {
+            return res.status(404).json({ message: 'Không tìm thấy tin nhắn' });
+        }
+
+        if (![message.sender.toString(), message.receiver.toString()].includes(userId.toString())) {
+            return res.status(403).json({ message: 'Không có quyền xem reactions' });
+        }
+
+        res.json(message.reactions);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

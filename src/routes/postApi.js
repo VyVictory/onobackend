@@ -1,7 +1,9 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
-import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, likePost, updatePost, getPostsByRange, searchPosts,getPostByRange } from '../controllers/postCLT.js';
+import checkPostAccess from '../middleware/postAccessMiddleware.js';
+import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, updatePost, getPostsByRange, searchPosts,getPostByRange } from '../controllers/postCLT.js';
 import multer from 'multer';
+import { toggleReaction } from '../controllers/reactionCTL.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import cloudinary from '../config/cloudinaryConfig.js';
 import path from 'path';
@@ -44,10 +46,10 @@ routerPost.post('/:postId/recall', authMiddleware, recallPost);
 routerPost.get('/getpost/:postId', authMiddleware, getPost);
 routerPost.get('/all', authMiddleware, getPosts);
 routerPost.get('/postByRange', authGetProfile, getPostByRange);
-routerPost.post('/:postId/like', authMiddleware, likePost);
 routerPost.delete('/:postId', authMiddleware, deletePost);
 routerPost.put('/:postId', upload.array('media', 10), authMiddleware, updatePost);
 routerPost.get('/range', authMiddleware, getPostsByRange);
 routerPost.get('/search', authMiddleware, searchPosts);
+routerPost.put('/:targetId/reaction', authMiddleware, toggleReaction);
 
 export default routerPost;
