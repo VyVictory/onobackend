@@ -13,7 +13,15 @@ const commentSchema = new mongoose.Schema({
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       startIndex: Number,
       endIndex: Number
-    }]
+    }],
+    reactionCounts: {
+        like: { type: Number, default: 0 },
+        love: { type: Number, default: 0 },
+        haha: { type: Number, default: 0 },
+        wow: { type: Number, default: 0 },
+        sad: { type: Number, default: 0 },
+        angry: { type: Number, default: 0 }
+    }
 }, { timestamps: true });
 
 commentSchema.index({ content: 'text' });
