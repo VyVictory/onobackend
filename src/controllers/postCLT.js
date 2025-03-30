@@ -218,7 +218,7 @@ export const getPostByRange = async (req, res) => {
     if (!posts || posts.length === 0) {
       return res.status(200).json({ message: "No posts found", posts: [] });
     }
-
+    
     // Lấy tổng số bài viết
     const total = await Post.countDocuments();
 

@@ -1,7 +1,8 @@
 import { Server } from "socket.io";
 import Message from "../models/message.js";
 import Notification from "../models/notification.js";
-
+import { profile } from "console";
+import User from "../models/user.js";
 let io;
 let onlineUsers = new Map();
 let userWatchers = new Map();
@@ -45,7 +46,7 @@ export const initSocket = (server) => {
           await notification.save();
         }
       });
-    }); 
+    });
     socket.on("call-accept", (data) => {
       if (data.status === false || data.status === true) {
         socket
@@ -54,10 +55,15 @@ export const initSocket = (server) => {
       }
       console.log("Call accept status:", socket.userId, data.status);
     });
-    socket.on("offer", (data) => {
-      socket
-        .to(`user_${data.target}`)
-        .emit("offer", { sdp: data.sdp, caller: socket.userId });
+    socket.on("offer", async (data) => {
+      const callerProfile = await User.findById(socket.userId).select(
+        "name avatar"
+      );
+      socket.to(`user_${data.target}`).emit("offer", {
+        sdp: data.sdp,
+        caller: socket.userId,
+        profile: callerProfile, // Gửi thông tin profile
+      });
     });
 
     socket.on("answer", (data) => {
