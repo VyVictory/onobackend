@@ -413,55 +413,55 @@ export const getGroupMembers = async (req, res) => {
 };
 
 // Bình luận bài đăng trong nhóm
-export const commentGroupPost = async (req, res) => {
-    try {
-        const { groupId, postId } = req.params;
-        const { content } = req.body;
-        const userId = req.user._id;
+// export const commentGroupPost = async (req, res) => {
+//     try {
+//         const { groupId, postId } = req.params;
+//         const { content } = req.body;
+//         const userId = req.user._id;
 
-        const group = await Group.findById(groupId);
-        if (!group) {
-            return res.status(404).json({ message: 'Không tìm thấy nhóm' });
-        }
+//         const group = await Group.findById(groupId);
+//         if (!group) {
+//             return res.status(404).json({ message: 'Không tìm thấy nhóm' });
+//         }
 
-        // Kiểm tra quyền bình luận
-        const member = group.members.find(m => 
-            m.user.toString() === userId.toString()
-        );
+//         // Kiểm tra quyền bình luận
+//         const member = group.members.find(m => 
+//             m.user.toString() === userId.toString()
+//         );
 
-        if (!member || member.status !== 'active') {
-            return res.status(403).json({ message: 'Không có quyền bình luận trong nhóm này' });
-        }
+//         if (!member || member.status !== 'active') {
+//             return res.status(403).json({ message: 'Không có quyền bình luận trong nhóm này' });
+//         }
 
-        const post = await Post.findOne({ _id: postId, group: groupId });
-        if (!post) {
-            return res.status(404).json({ message: 'Không tìm thấy bài đăng' });
-        }
+//         const post = await Post.findOne({ _id: postId, group: groupId });
+//         if (!post) {
+//             return res.status(404).json({ message: 'Không tìm thấy bài đăng' });
+//         }
 
-        const comment = new Comment({
-            author: userId,
-            post: postId,
-            content,
-            group: groupId
-        });
+//         const comment = new Comment({
+//             author: userId,
+//             post: postId,
+//             content,
+//             group: groupId
+//         });
 
-        await comment.save();
-        post.comments.push(comment._id);
-        await post.save();
+//         await comment.save();
+//         post.comments.push(comment._id);
+//         await post.save();
 
-        const populatedComment = await Comment.findById(comment._id)
-            .populate('author', 'firstName lastName avatar');
+//         const populatedComment = await Comment.findById(comment._id)
+//             .populate('author', 'firstName lastName avatar');
 
-        // Thông báo realtime
-        getIO().to(`group_${groupId}`).emit('newGroupComment', {
-            postId,
-            comment: populatedComment
-        });
+//         // Thông báo realtime
+//         getIO().to(`group_${groupId}`).emit('newGroupComment', {
+//             postId,
+//             comment: populatedComment
+//         });
 
-        res.status(201).json(populatedComment);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-};
+//         res.status(201).json(populatedComment);
+//     } catch (error) {
+//         res.status(500).json({ message: error.message });
+//     }
+// };
 
 

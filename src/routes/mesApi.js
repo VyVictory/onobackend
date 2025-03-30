@@ -1,6 +1,6 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
-import {getMessage, getMessages, deleteMessage, sendMessage, recallMessage,getMessageHistory, getMessagesByDay, getMessagesByRange, editMessage } from '../controllers/mesCTL.js';
+import {getMessage, getMessages, deleteMessage, sendMessage, recallMessage,getMessageHistory, getMessagesByDay, getMessagesByRange, editMessage,toggleMessageReaction,getMessageReactions } from '../controllers/mesCTL.js';
 import multer from 'multer';
 import path from 'path';
 
@@ -77,6 +77,8 @@ routerMessage.get('/inbox/rage/:userId', authMiddleware, getMessagesByRange);
 routerMessage.get('/all', authMiddleware, getMessages);
 routerMessage.delete('/:messageId', authMiddleware, deleteMessage);
 routerMessage.get('/history/:userId', authMiddleware, getMessageHistory);
+routerMessage.get('/reactions/:messageId', authMiddleware, getMessageReactions);
+routerMessage.post('/reactions/:messageId', authMiddleware, toggleMessageReaction);
 routerMessage.put('/:messageId', authMiddleware, upload.array('media', 10), editMessage);
 
 export default routerMessage;
