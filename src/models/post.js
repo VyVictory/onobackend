@@ -56,10 +56,10 @@ postSchema.pre('find', function(next) {
     this._conditions = {
         ...this._conditions,
         $or: [
-            { privacy: 'Public' },
-            { privacy: 'Private', author: this._conditions.currentUser },
+            { security: 'Public' },
+            { security: 'Private', author: this._conditions.currentUser },
             {
-                privacy: 'MyFriend',
+              security: 'MyFriend',
                 author: { 
                     $in: this._conditions.friendIds || [] 
                 }

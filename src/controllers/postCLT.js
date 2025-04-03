@@ -362,7 +362,6 @@ export const getPostsByRange = async (req, res) => {
           select: "firstName lastName avatar",
         },
       });
-
     const total = await Post.countDocuments();
 
     res.json({

@@ -45,7 +45,7 @@ routerPost.post('/:postId/send', authMiddleware, sharePost);
 routerPost.post('/:postId/recall', authMiddleware, recallPost);
 routerPost.get('/getpost/:postId', authMiddleware, getPost);
 routerPost.get('/all', authMiddleware, getPosts);
-routerPost.get('/postByRange', authGetProfile, getPostByRange);
+routerPost.get('/postByRange', authGetProfile, getPostsByRange);
 routerPost.delete('/:postId', authMiddleware, deletePost);
 routerPost.put('/:postId', upload.array('media', 10), authMiddleware, updatePost);
 routerPost.get('/range', authMiddleware, getPostsByRange);
