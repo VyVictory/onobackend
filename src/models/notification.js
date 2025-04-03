@@ -28,13 +28,13 @@ const notificationSchema = new mongoose.Schema(
     },
     reference: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      required: false,
       // Có thể reference đến nhiều model khác nhau tùy type
       refPath: "referenceModel",
     },
     referenceModel: {
       type: String,
-      enum: ["Post", "Comment", "Friendship"],
+      enum: ["Post", "Comment", "Friendship","Follow"],
     },
     content: { type: String, required: true },
     isRead: { type: Boolean, default: false },

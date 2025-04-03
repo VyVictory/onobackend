@@ -98,6 +98,59 @@ export const getNotificationsByRange = async (req, res) => {
     res.status(500).json({ message: "Error fetching notifications", error });
   }
 };
+export const getNotificationFollow = async (req, res) => {
+  try {
+    const { start, limit } = req.query;
+    const startIndex = parseInt(start) || 0; // Mặc định bắt đầu từ 0
+    const limitCount = parseInt(limit) || 20; // Mặc định lấy 20 thông báo
+
+    // 📌 Truy vấn danh sách thông báo chỉ với type: "NEW_FOLLOWER"
+    const notifications = await Notification.find({
+      recipient: req.user._id,
+      type: "NEW_FOLLOWER",
+    })
+      .sort({ createdAt: -1 }) // Sắp xếp theo thời gian mới nhất
+      .skip(startIndex) // Bỏ qua số lượng đã lấy trước đó
+      .limit(limitCount) // Giới hạn số lượng lấy về
+      .populate("sender", "_id avatar lastName firstName"); // Lấy thông tin người gửi
+
+    if (!notifications.length) {
+      return res.status(200).json({ unreadCount: 0, notifications: [] });
+    }
+
+    // 📌 Đếm tổng số thông báo chưa đọc dạng "NEW_FOLLOWER"
+    const totalUnreadCount = await Notification.countDocuments({
+      recipient: req.user._id,
+      type: "NEW_FOLLOWER",
+      isRead: false,
+    });
+
+    // 📌 Nhóm thông báo theo ngày
+    const groupedNotifications = {};
+    notifications.forEach((notification) => {
+      const dayKey = notification.createdAt.toISOString().split("T")[0]; // YYYY-MM-DD
+      if (!groupedNotifications[dayKey]) {
+        groupedNotifications[dayKey] = { notifications: [] };
+      }
+      groupedNotifications[dayKey].notifications.push(notification);
+    });
+
+    // 📌 Chuyển đổi dữ liệu về dạng [{ date: '', notifications: [] }, ...]
+    const result = Object.entries(groupedNotifications).map(
+      ([date, { notifications }]) => ({
+        date,
+        notifications,
+      })
+    );
+
+    // 📌 Trả về dữ liệu gồm tổng số thông báo chưa đọc + danh sách thông báo
+    res.json({ unreadCount: totalUnreadCount, notifications: result });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy thông báo NEW_FOLLOWER", error });
+  }
+};
 
 // Đánh dấu thông báo đã đọc
 export const markAsRead = async (req, res) => {
@@ -123,104 +176,104 @@ export const markAsRead = async (req, res) => {
 };
 
 export const getNotificationsByType = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        const { type } = req.params;
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+  try {
+    const userId = req.user._id;
+    const { type } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-        const query = {
-            recipient: userId,
-            isActive: true
-        };
+    const query = {
+      recipient: userId,
+      isActive: true,
+    };
 
-        // Thêm điều kiện type nếu được chỉ định
-        if (type && type !== 'all') {
-            query.type = type.toUpperCase();
-        }
-
-        const notifications = await Notification.find(query)
-            .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(limit)
-            .populate('sender', 'firstName lastName avatar')
-            .populate({
-                path: 'reference',
-                populate: {
-                    path: 'sender receiver', // Cho FriendRequest
-                    select: 'firstName lastName avatar'
-                }
-            });
-
-        // Lọc và format thông báo theo loại
-        const formattedNotifications = notifications.map(notification => {
-            const baseNotification = {
-                _id: notification._id,
-                sender: notification.sender,
-                type: notification.type,
-                content: notification.content,
-                isRead: notification.isRead,
-                createdAt: notification.createdAt
-            };
-
-            switch (notification.type) {
-                case 'FRIEND_REQUEST':
-                    return {
-                        ...baseNotification,
-                        friendRequest: notification.reference
-                    };
-                case 'MESSAGE':
-                    return {
-                        ...baseNotification,
-                        message: {
-                            content: notification.reference?.content,
-                            messageType: notification.reference?.messageType
-                        }
-                    };
-                case 'POST':
-                    return {
-                        ...baseNotification,
-                        post: {
-                            _id: notification.reference?._id,
-                            content: notification.reference?.content?.substring(0, 100)
-                        }
-                    };
-                case 'COMMENT':
-                    return {
-                        ...baseNotification,
-                        comment: {
-                            _id: notification.reference?._id,
-                            content: notification.reference?.content?.substring(0, 100)
-                        }
-                    };
-                case 'LIKE':
-                    return {
-                        ...baseNotification,
-                        like: {
-                            _id: notification.reference?._id,
-                            content: notification.reference?.content?.substring(0, 100)
-                        }
-                    };
-                case 'NEW_FOLLOWER':
-                    return {
-                        ...baseNotification,
-                        newFollower: {
-                            _id: notification.reference?._id,
-                            content: notification.reference?.content?.substring(0, 100)
-                        }
-                    };
-                default:
-                    return baseNotification;
-            }
-        });
-
-        res.json({
-            notifications: formattedNotifications,
-            page,
-            limit,
-            total: await Notification.countDocuments(query)
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    // Thêm điều kiện type nếu được chỉ định
+    if (type && type !== "all") {
+      query.type = type.toUpperCase();
     }
+
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate("sender", "firstName lastName avatar")
+      .populate({
+        path: "reference",
+        populate: {
+          path: "sender receiver", // Cho FriendRequest
+          select: "firstName lastName avatar",
+        },
+      });
+
+    // Lọc và format thông báo theo loại
+    const formattedNotifications = notifications.map((notification) => {
+      const baseNotification = {
+        _id: notification._id,
+        sender: notification.sender,
+        type: notification.type,
+        content: notification.content,
+        isRead: notification.isRead,
+        createdAt: notification.createdAt,
+      };
+
+      switch (notification.type) {
+        case "FRIEND_REQUEST":
+          return {
+            ...baseNotification,
+            friendRequest: notification.reference,
+          };
+        case "MESSAGE":
+          return {
+            ...baseNotification,
+            message: {
+              content: notification.reference?.content,
+              messageType: notification.reference?.messageType,
+            },
+          };
+        case "POST":
+          return {
+            ...baseNotification,
+            post: {
+              _id: notification.reference?._id,
+              content: notification.reference?.content?.substring(0, 100),
+            },
+          };
+        case "COMMENT":
+          return {
+            ...baseNotification,
+            comment: {
+              _id: notification.reference?._id,
+              content: notification.reference?.content?.substring(0, 100),
+            },
+          };
+        case "LIKE":
+          return {
+            ...baseNotification,
+            like: {
+              _id: notification.reference?._id,
+              content: notification.reference?.content?.substring(0, 100),
+            },
+          };
+        case "NEW_FOLLOWER":
+          return {
+            ...baseNotification,
+            newFollower: {
+              _id: notification.reference?._id,
+              content: notification.reference?.content?.substring(0, 100),
+            },
+          };
+        default:
+          return baseNotification;
+      }
+    });
+
+    res.json({
+      notifications: formattedNotifications,
+      page,
+      limit,
+      total: await Notification.countDocuments(query),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
