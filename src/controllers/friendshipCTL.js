@@ -297,11 +297,7 @@ export const getFriendsMess = async (req, res) => {
       }); 
       friendships.length = 0; // Clear the current array
       Array.prototype.push.apply(friendships, filteredFriendships);
-    }
-    console.log("friend", friendships);
-    friendships.map(async (friend) => {
-      console.log("dataFriend", friend.users);
-    });
+    } 
     // Eliminate duplicates using a Set
     const friends = [];
     const seenUserIds = new Set();
