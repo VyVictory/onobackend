@@ -171,7 +171,7 @@ export const cancelRequest = async (req, res) => {
     await deactivateNotifications(friendship._id);
     const newNotification = {
       recipient: userId,
-      sender: requesterId, 
+      sender: requesterId,
     };
     const notification = await createNotification(newNotification);
 
@@ -353,6 +353,11 @@ export const unfriend = async (req, res) => {
       users: { $all: [userId, friendId] },
       status: "accepted",
     });
+    const newNotification = {
+      recipient: friendId,
+      sender: userId,
+    };
+    const notification = await createNotification(newNotification);
 
     res.json({ message: "Đã hủy kết bạn" });
   } catch (error) {
@@ -381,10 +386,10 @@ export const blockUser = async (req, res) => {
         status: "blocked",
       });
       await newFriendship.save();
-    } 
+    }
     const newNotification = {
       recipient: userId,
-      sender: blockerId, 
+      sender: blockerId,
     };
     const notification = await createNotification(newNotification);
 
