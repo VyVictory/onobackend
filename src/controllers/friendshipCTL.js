@@ -119,23 +119,16 @@ export const respondToFriendRequest = async (req, res) => {
 
     await friendship.save();
 
-    if (status === "accepted") {
-      // const notification = new Notification({
-      //   recipient: friendship.requester._id,
-      //   sender: userId,
-      //   type: "FRIEND_ACCEPTED",
-      //   reference: friendship._id,
-      //   referenceModel: "Friendship",
-      //   content: `${req.user.firstName} ${req.user.lastName} đã chấp nhận lời mời kết bạn của bạn`,
-      // });
-      // await notification.save();
+    if (status === "accepted" || status === "rejected") {
       const newNotification = {
         recipient: friendship.requester._id,
         sender: userId,
         type: "FRIEND_ACCEPTED",
         reference: friendship._id,
         referenceModel: "Friendship",
-        content: `${req.user.firstName} ${req.user.lastName} đã chấp nhận lời mời kết bạn của bạn`,
+        content: `${req.user.firstName} ${req.user.lastName} đã ${
+          status === "accepted" ? "chấp nhận" : "từ chối"
+        } lời mời kết bạn của bạn`,
       };
       const notification = await createNotification(newNotification);
       if (!notification) {
@@ -176,6 +169,11 @@ export const cancelRequest = async (req, res) => {
 
     // Hủy kích hoạt thông báo liên quan
     await deactivateNotifications(friendship._id);
+    const newNotification = {
+      recipient: userId,
+      sender: requesterId, 
+    };
+    const notification = await createNotification(newNotification);
 
     res.json({ message: "Đã hủy lời mời kết bạn" });
   } catch (error) {
@@ -383,7 +381,12 @@ export const blockUser = async (req, res) => {
         status: "blocked",
       });
       await newFriendship.save();
-    }
+    } 
+    const newNotification = {
+      recipient: userId,
+      sender: blockerId, 
+    };
+    const notification = await createNotification(newNotification);
 
     res.json({ message: "Đã chặn người dùng" });
   } catch (error) {

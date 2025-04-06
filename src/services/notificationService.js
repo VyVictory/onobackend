@@ -17,6 +17,7 @@ export const createNotification = async ({
     if (reference) filter.reference = reference;
     if (referenceModel) filter.referenceModel = referenceModel;
     getIO().to(`user_${recipient}`).emit("loadProfile", { _id: sender });
+    if (!referenceModel) return;
     const existingNotification = await Notification.findOne(filter);
     if (existingNotification) return null;
 
