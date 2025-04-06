@@ -79,7 +79,10 @@ export const initSocket = (server) => {
       console.log("Ending call with user:", data.target);
       socket.to(`user_${data.target}`).emit("end-call", true);
     });
-
+    socket.on("camera-status", ({ target, status }) => {
+      // Gửi trạng thái camera cho người kia
+      io.to(`user_${target}`).emit("camera-status", { status });
+    });
     socket.on("requestUserStatus", (userIds) => {
       if (!Array.isArray(userIds)) userIds = [userIds];
       // console.log(`📡 ${socket.id} requested user status:`, userIds);
