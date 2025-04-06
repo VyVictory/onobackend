@@ -1,6 +1,7 @@
 import Follow from "../models/follow.js";
 import Notification from "../models/notification.js";
 import { getIO } from "../config/socketConfig.js";
+import { createNotification } from "./checkNotification.js";
 
 // Theo dõi người dùng
 export const followUser = async (req, res) => {
@@ -19,17 +20,26 @@ export const followUser = async (req, res) => {
       following: userId,
     });
 
-    await follow.save();
+    const data = await follow.save();
 
     // Tạo thông báo
-    const notification = new Notification({
-      recipient: userId,
-      sender: followerId,
-      type: "NEW_FOLLOWER",
-      referenceModel:"Follow",
-      content: `${req.user.firstName} ${req.user.lastName} đã bắt đầu theo dõi bạn`,
-    });
-    await notification.save();
+    // const notification = new Notification({
+    //   recipient: userId,
+    //   sender: followerId,
+    //   type: "NEW_FOLLOWER",
+    //   referenceModel: "Follow",
+    //   content: `${req.user.firstName} ${req.user.lastName} đã bắt đầu theo dõi bạn`,
+    // });
+    // await notification.save();
+    if (data) {
+      const notification = await createNotification({
+        recipient: userId,
+        sender: followerId,
+        type: "NEW_FOLLOWER",
+        referenceModel: "Follow",
+        content: `${req.user.firstName} ${req.user.lastName} đã bắt đầu theo dõi bạn`,
+      });
+    }
 
     // Gửi thông báo realtime
     // getIO()

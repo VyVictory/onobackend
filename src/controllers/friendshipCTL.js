@@ -55,45 +55,20 @@ export const sendFriendRequest = async (req, res) => {
       status: "pending",
     });
     await newFriendship.save();
-    const existingNotification = await checkNotifi(requesterId, recipientId);
-    console.log(existingNotification);
-    if (!existingNotification) {
-      // Tạo mối quan hệ bạn bè mới
 
-      // Tạo thông báo
-      const notification = await createNotification({
-        recipient: recipientId,
-        sender: requesterId,
-        type: "FRIEND_REQUEST",
-        reference: newFriendship._id,
-        referenceModel: "Friendship",
-        content: `${requester.firstName} ${requester.lastName} đã gửi lời mời kết bạn`,
-        isActive: true,
-        isRead: false,
-      });
-
-      // Gửi thông báo realtime
-      getIO()
-        .to(`user_${recipientId}`)
-        .emit("notification", {
-          _id: notification._id,
-          type: "FRIEND_REQUEST",
-          content: notification.content,
-          createdAt: notification.createdAt,
-          updatedAt: notification.updatedAt,
-          isActive: notification.isActive,
-          isRead: notification.isRead,
-          recipient: notification.recipient,
-          sender: {
-            _id: requester._id,
-            firstName: requester.firstName,
-            lastName: requester.lastName,
-            avatar: requester.avatar || "",
-          },
-          reference: notification.reference,
-          referenceModel: notification.referenceModel,
-          __v: 0,
-        });
+    // Tạo thông báo
+    const notification = await createNotification({
+      recipient: recipientId,
+      sender: requesterId,
+      type: "FRIEND_REQUEST",
+      reference: newFriendship._id,
+      referenceModel: "Friendship",
+      content: `${requester.firstName} ${requester.lastName} đã gửi lời mời kết bạn`,
+      isActive: true,
+      isRead: false,
+    });
+    if (!notification) {
+      console.log("lỗi tạo thông báo");
     }
 
     res.json({
@@ -145,46 +120,28 @@ export const respondToFriendRequest = async (req, res) => {
     await friendship.save();
 
     if (status === "accepted") {
-      const existingNotification = await checkNotifi(
-        friendship.requester._id,
-        userId
-      );
-      if (!existingNotification) {
-        const notification = new Notification({
-          recipient: friendship.requester._id,
-          sender: userId,
-          type: "FRIEND_ACCEPTED",
-          reference: friendship._id,
-          referenceModel: "Friendship",
-          content: `${req.user.firstName} ${req.user.lastName} đã chấp nhận lời mời kết bạn của bạn`,
-        });
-        await notification.save();
-
-        // Gửi thông báo realtime
-        getIO()
-          .to(`user_${friendship.requester._id}`)
-          .emit("notification", {
-            _id: notification._id,
-            type: "FRIEND_ACCEPTED",
-            content: notification.content,
-            createdAt: notification.createdAt,
-            updatedAt: notification.updatedAt,
-            isActive: true,
-            isRead: false,
-            recipient: notification.recipient,
-            sender: {
-              _id: req.user._id,
-              firstName: req.user.firstName,
-              lastName: req.user.lastName,
-              avatar: req.user.avatar || "",
-            },
-            reference: notification.reference,
-            referenceModel: notification.referenceModel,
-            __v: 0,
-          });
+      // const notification = new Notification({
+      //   recipient: friendship.requester._id,
+      //   sender: userId,
+      //   type: "FRIEND_ACCEPTED",
+      //   reference: friendship._id,
+      //   referenceModel: "Friendship",
+      //   content: `${req.user.firstName} ${req.user.lastName} đã chấp nhận lời mời kết bạn của bạn`,
+      // });
+      // await notification.save();
+      const newNotification = {
+        recipient: friendship.requester._id,
+        sender: userId,
+        type: "FRIEND_ACCEPTED",
+        reference: friendship._id,
+        referenceModel: "Friendship",
+        content: `${req.user.firstName} ${req.user.lastName} đã chấp nhận lời mời kết bạn của bạn`,
+      };
+      const notification = await createNotification(newNotification);
+      if (!notification) {
+        console.log("lỗi tạo thông báo");
       }
     }
-
     res.json({
       message:
         status === "accepted"
@@ -294,10 +251,10 @@ export const getFriendsMess = async (req, res) => {
             regexPattern.test(user.firstName) ||
             regexPattern.test(user.lastName)
         );
-      }); 
+      });
       friendships.length = 0; // Clear the current array
       Array.prototype.push.apply(friendships, filteredFriendships);
-    } 
+    }
     // Eliminate duplicates using a Set
     const friends = [];
     const seenUserIds = new Set();
