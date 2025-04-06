@@ -15,8 +15,8 @@ export const initSocket = (server) => {
     },
   });
   io.on("connection", (socket) => {
-    console.log("🔌 User connected:", socket.id);
-    console.log(onlineUsers);
+    // console.log("🔌 User connected:", socket.id);
+    // console.log(onlineUsers);
     socket.on("authenticate", (userId) => {
       if (!userId) return;
       const existingSocket = [...io.sockets.sockets.values()].find(
@@ -24,9 +24,9 @@ export const initSocket = (server) => {
       );
 
       if (existingSocket) {
-        console.log(
-          `🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`
-        );
+        // console.log(
+        //   `🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`
+        // );
         existingSocket.disconnect(true); // 🔥 Ngắt kết nối socket cũ
       }
 
@@ -34,7 +34,7 @@ export const initSocket = (server) => {
       socket.join(`user_${userId}`);
       onlineUsers.set(userId, true);
 
-      console.log(`✅ User ${userId} is now online.`);
+      // console.log(`✅ User ${userId} is now online.`);
       notifyWatchers(userId, true);
 
       // Lắng nghe sự kiện hủy thông báo
@@ -53,7 +53,7 @@ export const initSocket = (server) => {
           .to(`user_${data.target}`)
           .emit("call-accept", { caller: socket.userId, status: data.status });
       }
-      console.log("Call accept status:", socket.userId, data.status);
+      // console.log("Call accept status:", socket.userId, data.status);
     });
     socket.on("offer", async (data) => {
       const callerProfile = await User.findById(socket.userId).select(
