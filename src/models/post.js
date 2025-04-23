@@ -8,7 +8,7 @@ const postSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    content: { type: String, required: true },
+    content: { type: String, default: "" },
     media: [
       {
         url: { type: String, required: true },

@@ -30,9 +30,13 @@ const MAX_MENTIONS = 10;
 // Đăng bài
 export const createPost = async (req, res) => {
   try {
-    const { content, security } = req.body;
+    const { security } = req.body;
     const files = req.files;
     const author = req.user._id;
+    const content = "";
+    if(req.body.content){
+      content = req.body.content;
+    }
     if (!content && (!files || files.length === 0)) {
       return res.status(400).json({
         message: "Bài đăng phải có nội dung hoặc media",
@@ -56,9 +60,8 @@ export const createPost = async (req, res) => {
         })
       : [];
     const mediaResults = await Promise.all(mediaPromises);
-
     // Xử lý mentions
-    const mentions = await extractMentions(content);
+    const mentions = await extractMentions(content || "" );
 
     // Kiểm tra giới hạn mentions
     if (mentions.length > MAX_MENTIONS) {
@@ -66,17 +69,15 @@ export const createPost = async (req, res) => {
         message: `Bạn chỉ có thể gắn thẻ tối đa ${MAX_MENTIONS} người trong một bài viết`,
       });
     }
-
     const newPost = new Post({
       author,
-      content: content || "",
+      content: content || " ",
       security: security,
       media: mediaResults,
       mentions,
     });
 
     await newPost.save();
-
     const populatedPost = await Post.findById(newPost._id).populate(
       "author",
       "firstName lastName avatar"
