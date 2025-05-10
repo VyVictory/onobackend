@@ -9,6 +9,15 @@ const commentSchema = new mongoose.Schema({
       type: { type: String, enum: ['image', 'video', 'gif'] },
       thumbnail: String // cho video và gif
     }],
+    parentCommentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment',
+      default: null
+    },
+    replies: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Comment'
+    }],
     mentions: [{
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       startIndex: Number,

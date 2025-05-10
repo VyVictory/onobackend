@@ -1,6 +1,6 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
-import { createComment, getComment, getComments, deleteComment, updateComment } from '../controllers/cmtCTL.js';
+import { createComment, getComment, getComments, deleteComment, updateComment, getPostComments, getCommentReplies } from '../controllers/cmtCTL.js';
 import multer from 'multer';
 import cloudinary from '../config/cloudinaryConfig.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -21,6 +21,8 @@ routerCmt.post('/:postId/comment',upload.array('media', 10),authMiddleware, crea
 routerCmt.get('/:commentId', authMiddleware, getComment);
 routerCmt.get('/all', authMiddleware, getComments);
 routerCmt.delete('/:commentId', authMiddleware, deleteComment);
+routerCmt.get('/:postId/comments', authMiddleware, getPostComments);
+routerCmt.get('/:commentId/replies', authMiddleware, getCommentReplies);
 routerCmt.put('/:commentId', upload.array('media', 10), authMiddleware, updateComment);
 
 export default routerCmt;

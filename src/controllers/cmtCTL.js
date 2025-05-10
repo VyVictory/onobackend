@@ -82,14 +82,34 @@ const extractMentions = async (content, userId) => {
 
 // Đăng bình luận
 export const createComment = async (req, res) => {
-    const { content } = req.body;
+    const { content, parentCommentId } = req.body;
     const { postId } = req.params;
     const media = req.files;
 
     try {
         const post = await Post.findById(postId);
-        if (!post) return res.status(404).json({ message: 'Post not found' });
+        if (!post) {
+            return res.status(404).json({ message: 'Không tìm thấy bài đăng' });
+        }
 
+        // Nếu là trả lời bình luận, kiểm tra bình luận gốc
+        let parentComment = null;
+        if (parentCommentId) {
+            parentComment = await Comment.findById(parentCommentId);
+            if (!parentComment) {
+                return res.status(404).json({ message: 'Không tìm thấy bình luận gốc' });
+            }
+            // Kiểm tra xem bình luận gốc có thuộc bài đăng này không
+            if (parentComment.post.toString() !== postId) {
+                return res.status(400).json({ message: 'Bình luận gốc không thuộc bài đăng này' });
+            }
+        }
+
+        // Xử lý media nếu có
+        const media = req.files ? req.files.map(file => ({
+            type: file.mimetype.startsWith('image/') ? 'image' : 'video',
+            url: file.path
+        })) : [];
         // Xử lý mentions với userId của người đang comment
         const mentions = await extractMentions(content, req.user._id);
 
@@ -105,11 +125,18 @@ export const createComment = async (req, res) => {
             post: postId,
             content: content.trim(),
             media: media ? media.map(file => file.path) : [],
-            mentions
+            mentions,
+            parentCommentId: parentCommentId ? parentCommentId : null
         });
 
         await newComment.save();
-        
+        if (parentComment) {
+            parentComment.replies.push(newComment._id);
+            await parentComment.save();
+        }
+
+        // Populate thông tin tác giả
+        await Comment.populate('author', 'firstName lastName avatar');
         // Thêm comment vào post
         post.comments.push(newComment._id);
         await post.save();
@@ -142,11 +169,8 @@ export const createComment = async (req, res) => {
 
         res.status(201).json(populatedComment);
     } catch (error) {
-        console.error('Error creating comment:', error);
-        res.status(500).json({ 
-            message: 'Error creating comment', 
-            error: error.message 
-        });
+        console.error('Create comment error:', error);
+        res.status(500).json({ message: error.message });
     }
 };
 
@@ -172,5 +196,73 @@ export const updateComment = async (req, res) => {
         res.json(comment);
     } catch (error) {
         res.status(500).json({ message: 'Error updating comment', error });
+    }
+};
+
+// Lấy danh sách bình luận của bài đăng
+export const getPostComments = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const { page = 1, limit = 10 } = req.query;
+
+        const comments = await Comment.find({
+            post: postId,
+            parentComment: null // Chỉ lấy bình luận gốc
+        })
+        .populate('author', 'firstName lastName avatar')
+        .populate({
+            path: 'replies',
+            populate: {
+                path: 'author',
+                select: 'firstName lastName avatar'
+            },
+            options: { sort: { createdAt: 1 } }
+        })
+        .sort('-createdAt')
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+        const total = await Comment.countDocuments({
+            post: postId,
+            parentComment: null
+        });
+
+        res.json({
+            comments,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Lấy danh sách trả lời của một bình luận
+export const getCommentReplies = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { page = 1, limit = 10 } = req.query;
+
+        const replies = await Comment.find({
+            parentComment: commentId
+        })
+        .populate('author', 'firstName lastName avatar')
+        .sort('createdAt')
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit));
+
+        const total = await Comment.countDocuments({
+            parentComment: commentId
+        });
+
+        res.json({
+            replies,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page
+        });
+
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 };
