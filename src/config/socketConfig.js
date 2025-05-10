@@ -22,11 +22,8 @@ export const initSocket = (server) => {
       const existingSocket = [...io.sockets.sockets.values()].find(
         (s) => s.userId === userId
       );
-
+      console.log("🔄 User connect:", socket.id);
       if (existingSocket) {
-        // console.log(
-        //   `🔄 User ${userId} đã có socket cũ (${existingSocket.id}), ngắt kết nối`
-        // );
         existingSocket.disconnect(true); // 🔥 Ngắt kết nối socket cũ
       }
 

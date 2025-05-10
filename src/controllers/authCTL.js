@@ -108,8 +108,6 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    console.log("✅ từ authCTL User found:", user);
-
     // Kiểm tra mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.password);
     console.log("🔑 từ authCTL Password match:", isPasswordValid); // ✅ Debug
