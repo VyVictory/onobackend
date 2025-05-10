@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 
+const MAX_REPLIES = 10; // Giới hạn tối đa 10 replies
+
 const commentSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
@@ -32,6 +34,15 @@ const commentSchema = new mongoose.Schema({
         angry: { type: Number, default: 0 }
     }
 }, { timestamps: true });
+
+// Thêm middleware để kiểm tra số lượng replies
+commentSchema.pre('save', async function(next) {
+    if (this.isModified('replies') && this.replies.length > MAX_REPLIES) {
+        const error = new Error(`Số lượng replies vượt quá giới hạn cho phép (${MAX_REPLIES})`);
+        return next(error);
+    }
+    next();
+});
 
 commentSchema.index({ content: 'text' });
 commentSchema.index({ createdAt: -1 });
