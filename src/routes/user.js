@@ -11,8 +11,12 @@ import {
   getUsersByUsername,
   searchFriendsForMention,
   searchUsers,
-  updateUserProfile
+  updateUserProfile,
+  getUsers,
+  toggleUserBan,
+  deleteUser
 } from "../controllers/userCTL.js";
+import { isAdmin } from "../middleware/authMiddleware.js";
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -29,5 +33,8 @@ routerUser.get("/finduser/:name", getUsersByUsername);
 routerUser.get('/mention-suggestions', authMiddleware, searchFriendsForMention);
 routerUser.get('/search', authMiddleware, searchUsers);
 routerUser.put('/profile/update', authMiddleware,uploadUserPhotos, updateUserProfile);
+routerUser.get('/admin/users',authMiddleware,isAdmin, getUsers);
+routerUser.put('/admin/users/:userId/ban',authMiddleware, isAdmin, toggleUserBan);
+routerUser.delete('/admin/users/:userId',authMiddleware, isAdmin, deleteUser);
 
 export default routerUser;

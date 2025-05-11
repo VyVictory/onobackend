@@ -8,6 +8,7 @@ import { uploadMedia, deleteMedia } from "../services/mediaService.js";
 import { deactivateNotifications, createNotification } from "../services/notificationService.js";
 import mongoose from 'mongoose';
 import Friendship from "../models/friendship.js";
+import Comment from "../models/comment.js";
 
 const MAX_MENTIONS = 10;
 
@@ -290,98 +291,83 @@ export const getPost = async (req, res) => {
 
 // Lấy tất cả bài viết
 export const getPosts = async (req, res) => {
-  try {
-      const userId = req.user._id;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
+    try {
+        const { page = 1, limit = 10, search = '' } = req.query;
+        const query = {};
 
-      // Lấy danh sách bạn bè
-      const user = await User.findById(userId);
-      const friendIds = user.friends.map(friend => friend.toString());
+        if (search) {
+            query.$or = [
+                { content: { $regex: search, $options: 'i' } }
+            ];
+        }
 
-      // Xây dựng query dựa trên quyền xem
-      const query = {
-          $or: [
-              { privacy: 'public' },
-              { privacy: 'private', author: userId },
-              { 
-                  privacy: 'friends', 
-                  author: { $in: friendIds },
-              },
-              {
-                  group: { $exists: true },
-                  $expr: {
-                      $in: [userId, {
-                          $map: {
-                              input: "$group.members",
-                              as: "member",
-                              in: "$$member.user"
-                          }
-                      }]
-                  }
-              }
-          ]
-      };
+        const posts = await Post.find(query)
+            .populate('author', 'firstName lastName avatar')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
 
-      const posts = await Post.find(query)
-          .sort({ createdAt: -1 })
-          .skip((page - 1) * limit)
-          .limit(limit)
-          .populate('author', 'firstName lastName avatar')
-          .populate('group', 'name')
-          .populate({
-              path: 'comments',
-              populate: {
-                  path: 'author',
-                  select: 'firstName lastName avatar'
-              }
-          });
+        const total = await Post.countDocuments(query);
 
-      const total = await Post.countDocuments(query);
+        res.json({
+            posts,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
-      res.json({
-          posts,
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          total
-      });
-  } catch (error) {
-      res.status(500).json({ message: error.message });
-  }
+// Ban/Unban bài viết
+export const togglePostBan = async (req, res) => {
+    try {
+        const { postId } = req.params;
+
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ message: 'Không tìm thấy bài viết' });
+        }
+
+        post.active = !post.active;
+
+
+        await post.save();
+
+        // Nếu ban bài viết, cũng sẽ ban tất cả bình luận của bài viết đó
+        if (!post.active) {
+            await Comment.updateMany(
+                { post: postId },
+                { active: false }
+            );
+        }
+
+        res.json(post);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
 // Xóa bài viết
 export const deletePost = async (req, res) => {
-  try {
     try {
-      const userId = req.user._id;
-      const { postId } = req.params;
+        const { postId } = req.params;
 
-      const post = await Post.findOne({
-        _id: postId,
-        author: userId,
-      });
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ message: 'Không tìm thấy bài viết' });
+        }
 
-      if (!post) {
-        return res.status(404).json({ message: "Không tìm thấy bài viết" });
-      }
+        // Xóa tất cả bình luận của bài viết
+        await Comment.deleteMany({ post: postId });
 
-      // Xóa bài viết
-      await post.remove();
+        // Xóa bài viết
+        await post.delete();
 
-      // Hủy kích hoạt tất cả thông báo liên quan đến bài viết
-      await deactivateNotifications(postId);
-
-      res.json({ message: "Đã xóa bài viết" });
+        res.json({ message: 'Đã xóa bài viết thành công' });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+        res.status(500).json({ message: error.message });
     }
-
-    await Post.delete();
-    res.json({ message: "Post deleted" });
-  } catch (error) {
-    res.status(500).json({ message: "Error deleting post", error });
-  }
 };
 
 // Sửa bài đăng
