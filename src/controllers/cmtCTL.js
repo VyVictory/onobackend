@@ -37,7 +37,7 @@ export const getCommentPost = async (req, res) => {
       active: true,
     })
       .sort({ createdAt: -1 }) // Mới nhất trước
-      .skip((page - 1) * limit)
+    //   .skip((page - 1) * limit)
       .limit(parseInt(limit))
       .populate("author", "firstName lastName avatar")
       .populate("mentions.id", "firstName lastName avatar")
