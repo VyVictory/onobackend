@@ -1,7 +1,7 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPostAccess from '../middleware/postAccessMiddleware.js';
-import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, updatePost, getPostsByRange, searchPosts,getPostByRange,togglePostBan } from '../controllers/postCLT.js';
+import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, updatePost, getPostsByRange, searchPosts,getPostByRange,togglePostBan, isNotification } from '../controllers/postCLT.js';
 import multer from 'multer';
 import { toggleReaction, getReactions } from '../controllers/reactionCTL.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -52,6 +52,7 @@ routerPost.put('/:postId', upload.array('media', 10), authMiddleware, updatePost
 routerPost.get('/range', authMiddleware, getPostsByRange);
 routerPost.get('/search', authMiddleware, searchPosts);
 routerPost.put('/:targetId/reaction', authMiddleware, toggleReaction);
+routerPost.put('/isNotification/:postId', authMiddleware,isNotification);
 routerPost.get('/:targetType/:targetId/reaction', authMiddleware, getReactions);
 routerPost.get('/admin/posts', authMiddleware,isAdmin, getPosts);
 routerPost.put('/admin/posts/:postId/ban', authMiddleware,isAdmin, togglePostBan);

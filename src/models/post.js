@@ -41,7 +41,8 @@ const postSchema = new mongoose.Schema(
     group: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Group' 
-    },
+    }, 
+    isNotification: { type: Boolean, default: true },
     reactionCounts: {
         like: { type: Number, default: 0 },
         love: { type: Number, default: 0 },
