@@ -17,6 +17,7 @@ const commentSchema = new mongoose.Schema({
       default: null
     },
     hashtags: [{
+      tag : { type: String },
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       line: Number,
       status: { type: Boolean, default: true }

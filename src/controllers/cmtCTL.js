@@ -6,6 +6,8 @@ import Notification from '../models/notification.js';
 import { getIO } from '../config/socketConfig.js';
 import Friendship from '../models/friendship.js';
 import { createNotification } from '../services/notificationService.js';
+import mongoose from 'mongoose';
+import User from '../models/user.js';
 
 // Lấy bình luận
 export const getComment = async (req, res) => {
@@ -54,30 +56,83 @@ const extractMentions = async (content, userId) => {
         const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
         const mentions = [];
         let match;
+        const processedUsers = new Set(); // Để tránh mention trùng lặp
 
         while ((match = mentionRegex.exec(content)) !== null) {
             const [fullMatch, username, mentionedUserId] = match;
             
-            // Kiểm tra xem người được mention có phải là bạn bè không
+            // Kiểm tra userId hợp lệ
+            if (!mongoose.Types.ObjectId.isValid(mentionedUserId)) {
+                continue;
+            }
+
+            // Kiểm tra không mention chính mình
+            if (mentionedUserId === userId.toString()) {
+                continue;
+            }
+
+            // Kiểm tra không mention trùng lặp
+            if (processedUsers.has(mentionedUserId)) {
+                continue;
+            }
+
+            // Kiểm tra người dùng tồn tại
+            const mentionedUser = await User.findById(mentionedUserId);
+            if (!mentionedUser) {
+                continue;
+            }
+
+            // Kiểm tra quyền mention (có thể là bạn bè hoặc public profile)
             const friendship = await Friendship.findOne({
                 users: { $all: [userId, mentionedUserId] },
                 status: 'accepted'
             });
 
-            if (friendship) {
+            const mentionedUserProfile = await User.findById(mentionedUserId)
+                .select('privacy');
+
+            // Cho phép mention nếu là bạn bè hoặc profile public
+            if (friendship || mentionedUserProfile?.privacy === 'public') {
                 mentions.push({
                     user: mentionedUserId,
                     startIndex: match.index,
                     endIndex: match.index + fullMatch.length
                 });
+                processedUsers.add(mentionedUserId);
             }
+        }
+
+        // Kiểm tra giới hạn số lượng mentions
+        if (mentions.length > MAX_MENTIONS) {
+            throw new Error(`Bạn chỉ có thể gắn thẻ tối đa ${MAX_MENTIONS} người trong một bình luận`);
         }
 
         return mentions;
     } catch (error) {
         console.error('Error extracting mentions:', error);
-        return [];
+        throw error;
     }
+};
+
+const extractHashtags = async (content, userId) => {
+    const hashtags = [];
+    const lines = content.split('\n');
+    
+    lines.forEach((line, index) => {
+        const hashtagRegex = /#(\w+)/g;
+        let match;
+        
+        while ((match = hashtagRegex.exec(line)) !== null) {
+            hashtags.push({
+                tag: match[1].toLowerCase(),
+                user: userId,
+                line: index + 1,
+                status: true
+            });
+        }
+    });
+    
+    return hashtags;
 };
 
 // Đăng bình luận
@@ -99,7 +154,6 @@ export const createComment = async (req, res) => {
             if (!parentComment) {
                 return res.status(404).json({ message: 'Không tìm thấy bình luận gốc' });
             }
-            // Kiểm tra xem bình luận gốc có thuộc bài đăng này không
             if (parentComment.post.toString() !== postId) {
                 return res.status(400).json({ message: 'Bình luận gốc không thuộc bài đăng này' });
             }
@@ -111,30 +165,17 @@ export const createComment = async (req, res) => {
             url: file.path,
             status: true
         })) : [];
-        const extractHashtags = async (content, userId) => {
-            const hashtags = [];
-            const lines = content.split('\n');
-            
-            lines.forEach((line, index) => {
-                const hashtagRegex = /#(\w+)/g;
-                let match;
-                
-                while ((match = hashtagRegex.exec(line)) !== null) {
-                    hashtags.push({
-                        user: userId,
-                        line: index + 1,
-                        status: true
-                    });
-                }
-            });
-            
-            return hashtags;
-        };
+        
         // Xử lý hashtags
         const hashtags = await extractHashtags(content, req.user._id);
 
         // Xử lý mentions
-        const mentions = await extractMentions(content, req.user._id);
+        let mentions = [];
+        try {
+            mentions = await extractMentions(content, req.user._id);
+        } catch (error) {
+            return res.status(400).json({ message: error.message });
+        }
 
         const newComment = new Comment({
             author: req.user._id,
@@ -157,25 +198,36 @@ export const createComment = async (req, res) => {
         await post.save();
 
         // Tạo và gửi thông báo cho những người được mention
-        const notifications = await Promise.all(mentions.map(async mention => {
-            const notification = new Notification({
-                recipient: mention.user,
-                sender: req.user._id,
-                type: 'COMMENT_MENTION',
-                reference: newComment._id,
-                referenceModel: 'Comment',
-                content: `${req.user.firstName} ${req.user.lastName} đã nhắc đến bạn trong một bình luận`
-            });
-            await notification.save();
+        try {
+            const notifications = await Promise.all(mentions.map(async mention => {
+                try {
+                    const notification = await createNotification({
+                        recipient: mention.user,
+                        sender: req.user._id,
+                        type: 'COMMENT_MENTION',
+                        reference: newComment._id,
+                        referenceModel: 'Comment',
+                        content: `${req.user.firstName} ${req.user.lastName} đã nhắc đến bạn trong một bình luận`
+                    });
 
-            // Gửi thông báo realtime
-            getIO().to(`user_${mention.user}`).emit('notification', {
-                type: 'COMMENT_MENTION',
-                notification: await notification.populate('sender', 'firstName lastName avatar')
-            });
+                    if (notification) {
+                        // Gửi thông báo realtime
+                        getIO().to(`user_${mention.user}`).emit('notification', {
+                            type: 'COMMENT_MENTION',
+                            notification: await notification.populate('sender', 'firstName lastName avatar')
+                        });
+                    }
 
-            return notification;
-        }));
+                    return notification;
+                } catch (error) {
+                    console.error('Error creating notification for mention:', error);
+                    return null;
+                }
+            }));
+        } catch (error) {
+            console.error('Error creating notifications:', error);
+            // Không trả về lỗi vì comment đã được tạo thành công
+        }
 
         // Trả về comment đã được populate với thông tin author và mentions
         const populatedComment = await Comment.findById(newComment._id)
