@@ -16,6 +16,7 @@ const postSchema = new mongoose.Schema(
         thumbnail: String, // cho video và gif
         publicId: String, // ID của file trên Cloudinary để quản lý xóa
         duration: Number, // cho video
+        status: { type: Boolean, default: true }
       },
     ],
     shares: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -43,7 +44,8 @@ const postSchema = new mongoose.Schema(
         wow: { type: Number, default: 0 },
         sad: { type: Number, default: 0 },
         angry: { type: Number, default: 0 }
-    }
+    },
+    active: { type: Boolean, default: true }
   },
   { timestamps: true }
 );

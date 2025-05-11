@@ -82,7 +82,7 @@ const extractMentions = async (content, userId) => {
 
 // Đăng bình luận
 export const createComment = async (req, res) => {
-    const { content, parentCommentId } = req.body;
+    const { content, idCmt } = req.body;
     const { postId } = req.params;
     const media = req.files;
 
@@ -94,8 +94,8 @@ export const createComment = async (req, res) => {
 
         // Nếu là trả lời bình luận, kiểm tra bình luận gốc
         let parentComment = null;
-        if (parentCommentId) {
-            parentComment = await Comment.findById(parentCommentId);
+        if (idCmt) {
+            parentComment = await Comment.findById(idCmt);
             if (!parentComment) {
                 return res.status(404).json({ message: 'Không tìm thấy bình luận gốc' });
             }
@@ -106,37 +106,52 @@ export const createComment = async (req, res) => {
         }
 
         // Xử lý media nếu có
-        const media = req.files ? req.files.map(file => ({
+        const mediaArray = media ? media.map(file => ({
             type: file.mimetype.startsWith('image/') ? 'image' : 'video',
-            url: file.path
+            url: file.path,
+            status: true
         })) : [];
-        // Xử lý mentions với userId của người đang comment
-        const mentions = await extractMentions(content, req.user._id);
-
-        // Kiểm tra giới hạn mentions
-        if (mentions.length > MAX_MENTIONS) {
-            return res.status(400).json({ 
-                message: `Bạn chỉ có thể gắn thẻ tối đa ${MAX_MENTIONS} người trong một bình luận`
+        const extractHashtags = async (content, userId) => {
+            const hashtags = [];
+            const lines = content.split('\n');
+            
+            lines.forEach((line, index) => {
+                const hashtagRegex = /#(\w+)/g;
+                let match;
+                
+                while ((match = hashtagRegex.exec(line)) !== null) {
+                    hashtags.push({
+                        user: userId,
+                        line: index + 1,
+                        status: true
+                    });
+                }
             });
-        }
+            
+            return hashtags;
+        };
+        // Xử lý hashtags
+        const hashtags = await extractHashtags(content, req.user._id);
+
+        // Xử lý mentions
+        const mentions = await extractMentions(content, req.user._id);
 
         const newComment = new Comment({
             author: req.user._id,
             post: postId,
             content: content.trim(),
-            media: media ? media.map(file => file.path) : [],
+            media: mediaArray,
+            idCmt: idCmt || null,
+            hashtags,
             mentions,
-            parentCommentId: parentCommentId ? parentCommentId : null
+            active: true
         });
 
         await newComment.save();
-        if (parentComment) {
-            parentComment.replies.push(newComment._id);
-            await parentComment.save();
-        }
 
         // Populate thông tin tác giả
         await Comment.populate('author', 'firstName lastName avatar');
+        
         // Thêm comment vào post
         post.comments.push(newComment._id);
         await post.save();
@@ -165,7 +180,8 @@ export const createComment = async (req, res) => {
         // Trả về comment đã được populate với thông tin author và mentions
         const populatedComment = await Comment.findById(newComment._id)
             .populate('author', 'firstName lastName avatar')
-            .populate('mentions.user', 'firstName lastName avatar');
+            .populate('mentions.user', 'firstName lastName avatar')
+            .populate('hashtags.user', 'firstName lastName avatar');
 
         res.status(201).json(populatedComment);
     } catch (error) {
@@ -204,28 +220,23 @@ export const getPostComments = async (req, res) => {
     try {
         const { postId } = req.params;
         const { page = 1, limit = 10 } = req.query;
-
-        const comments = await Comment.find({
+        const filter = {
             post: postId,
-            parentComment: null // Chỉ lấy bình luận gốc
-        })
+            idCmt: null, // Chỉ lấy bình luận gốc
+            active: true
+        };
+
+        const comments = await Comment.find(filter)
         .populate('author', 'firstName lastName avatar')
         .populate({
-            path: 'replies',
-            populate: {
-                path: 'author',
-                select: 'firstName lastName avatar'
-            },
-            options: { sort: { createdAt: 1 } }
+            path: 'hashtags.user',
+            select: 'firstName lastName avatar'
         })
         .sort('-createdAt')
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
 
-        const total = await Comment.countDocuments({
-            post: postId,
-            parentComment: null
-        });
+        const total = await Comment.countDocuments(filter);
 
         res.json({
             comments,
@@ -243,18 +254,22 @@ export const getCommentReplies = async (req, res) => {
     try {
         const { commentId } = req.params;
         const { page = 1, limit = 10 } = req.query;
+        const filter = {
+            idCmt: commentId,
+            active: true
+        };
 
-        const replies = await Comment.find({
-            parentComment: commentId
-        })
+        const replies = await Comment.find(filter)
         .populate('author', 'firstName lastName avatar')
+        .populate({
+            path: 'hashtags.user',
+            select: 'firstName lastName avatar'
+        })
         .sort('createdAt')
         .skip((page - 1) * limit)
         .limit(parseInt(limit));
 
-        const total = await Comment.countDocuments({
-            parentComment: commentId
-        });
+        const total = await Comment.countDocuments(filter);
 
         res.json({
             replies,
