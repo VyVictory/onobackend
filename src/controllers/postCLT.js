@@ -33,16 +33,18 @@ export const createPost = async (req, res) => {
     const { security } = req.body;
     const files = req.files;
     const author = req.user._id;
-    const content = "";
-    if(req.body.content){
+    let content = ""; // Dùng let thay vì const
+    
+    if (req?.body?.content) {
       content = req.body.content;
     }
+    
     if (!content && (!files || files.length === 0)) {
       return res.status(400).json({
         message: "Bài đăng phải có nội dung hoặc media",
       });
     }
-
+    
     // Xử lý upload nhiều file
     const mediaPromises = files
       ? files.map(async (file) => {
