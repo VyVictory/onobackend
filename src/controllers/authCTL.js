@@ -127,6 +127,7 @@ export const login = async (req, res) => {
         createdAt: user.createdAt,
         avatar: user.avatar,
         updatedAt: user.updatedAt,
+        role: user.role  // Thêm trường role
       },
       SECRET_KEY,
       { expiresIn: "24h" }
@@ -143,6 +144,7 @@ export const login = async (req, res) => {
         createdAt: user.createdAt,
         avatar: user.avatar,
         updatedAt: user.updatedAt,
+        role: user.role  // Thêm trường role
       },
       token, // 🔹 Gửi token hợp lệ
     });

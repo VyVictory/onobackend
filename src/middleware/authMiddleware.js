@@ -23,4 +23,17 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
+export const isAdmin = async (req, res, next) => {
+    try {
+        if (!req.user || req.user.role !== '1') {
+            return res.status(403).json({ 
+                message: 'Bạn không có quyền truy cập chức năng này' 
+            });
+        }
+        next();
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 export default authMiddleware;

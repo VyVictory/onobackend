@@ -2,6 +2,8 @@ import User from "../models/user.js";
 import Friendship from "../models/friendship.js";
 import mongoose from "mongoose";
 import cloudinary from "../config/cloudinaryConfig.js";
+import Post from "../models/post.js";
+import Comment from "../models/comment.js";
 
 const offUser = () => ({
   status: true,
@@ -252,6 +254,107 @@ export const updateUserProfile = async (req, res) => {
       error: error.message,
     });
   }
+};
+
+// Lấy danh sách người dùng (cho admin)
+export const getUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '' } = req.query;
+        const query = {};
+
+        if (search) {
+            query.$or = [
+                { firstName: { $regex: search, $options: 'i' } },
+                { lastName: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const users = await User.find(query)
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(parseInt(limit));
+
+        const total = await User.countDocuments(query);
+
+        res.json({
+            users,
+            totalPages: Math.ceil(total / limit),
+            currentPage: page
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Ban/Unban người dùng
+export const toggleUserBan = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { reason } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+        }
+
+        // Không cho phép ban admin khác
+        if (user.role === 'admin' && req.user._id.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Không thể ban tài khoản admin khác' });
+        }
+
+        user.active = !user.active;
+        if (reason) {
+            user.banReason = reason;
+        }
+
+        await user.save();
+
+        // Nếu ban user, cũng sẽ ban tất cả bài viết và bình luận của user đó
+        if (!user.active) {
+            await Post.updateMany(
+                { author: userId },
+                { active: false }
+            );
+            await Comment.updateMany(
+                { author: userId },
+                { active: false }
+            );
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Xóa người dùng
+export const deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+        }
+
+        // Không cho phép xóa admin khác
+        if (user.role === 'admin' && req.user._id.toString() !== user._id.toString()) {
+            return res.status(403).json({ message: 'Không thể xóa tài khoản admin khác' });
+        }
+
+        // Xóa tất cả bài viết và bình luận của user
+        await Post.deleteMany({ author: userId });
+        await Comment.deleteMany({ author: userId });
+
+        // Xóa user
+        await user.delete();
+
+        res.json({ message: 'Đã xóa người dùng thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 };
 
 

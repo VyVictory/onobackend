@@ -69,6 +69,31 @@ export const getComments = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error fetching comments", error });
   }
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const query = {};
+
+    if (search) {
+      query.$or = [{ content: { $regex: search, $options: "i" } }];
+    }
+
+    const comments = await Comment.find(query)
+      .populate("author", "firstName lastName avatar")
+      .populate("post", "content")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await Comment.countDocuments(query);
+
+    res.json({
+      comments,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // Xóa bình luận
@@ -81,7 +106,7 @@ export const deleteComment = async (req, res) => {
     comment.status = false;
     await comment.save();
 
-    res.json({ message: "Comment deleted (soft)" });
+    res.status(200).json({ message: "Comment deleted (soft)" });
   } catch (error) {
     res.status(500).json({ message: "Error deleting comment", error });
   }
@@ -350,39 +375,6 @@ export const updateComment = async (req, res) => {
   }
 };
 
-// Lấy danh sách bình luận của bài đăng
-export const getPostComments = async (req, res) => {
-  try {
-    const { postId } = req.params;
-    const { page = 1, limit = 10 } = req.query;
-    const filter = {
-      post: postId,
-      idCmt: null, // Chỉ lấy bình luận gốc
-      active: true,
-    };
-
-    const comments = await Comment.find(filter)
-      .populate("author", "firstName lastName avatar")
-      .populate({
-        path: "hashtags.user",
-        select: "firstName lastName avatar",
-      })
-      .sort("-createdAt")
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    const total = await Comment.countDocuments(filter);
-
-    res.json({
-      comments,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 // Lấy danh sách trả lời của một bình luận
 export const getCommentReplies = async (req, res) => {
   try {
@@ -410,6 +402,25 @@ export const getCommentReplies = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       currentPage: page,
     });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Ban/Unban bình luận
+export const toggleCommentBan = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Không tìm thấy bình luận" });
+    }
+
+    comment.active = !comment.active;
+    await comment.save();
+
+    res.json(comment);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

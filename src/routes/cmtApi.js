@@ -1,9 +1,10 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
-import { createComment, getComment, getComments, deleteComment, updateComment, getPostComments, getCommentReplies, getCommentPost } from '../controllers/cmtCTL.js';
+import { createComment, getComment, getComments, deleteComment, updateComment, getCommentReplies, getCommentPost,toggleCommentBan } from '../controllers/cmtCTL.js';
 import multer from 'multer';
 import cloudinary from '../config/cloudinaryConfig.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import { isAdmin } from '../middleware/authMiddleware.js';
 
 
 const storage = new CloudinaryStorage({
@@ -22,8 +23,10 @@ routerCmt.get('/:commentId', authMiddleware, getComment);
 routerCmt.get('/byPost/:postId', authMiddleware, getCommentPost);
 routerCmt.get('/all', authMiddleware, getComments);
 routerCmt.delete('/:commentId', authMiddleware, deleteComment);
-routerCmt.get('/:postId/comments', authMiddleware, getPostComments);
 routerCmt.get('/:commentId/replies', authMiddleware, getCommentReplies);
 routerCmt.put('/:commentId', upload.array('media', 10), authMiddleware, updateComment);
+routerCmt.get('/admin/comments', authMiddleware,isAdmin, getComments);
+routerCmt.put('/admin/comments/:commentId/ban', authMiddleware,isAdmin, toggleCommentBan);
+routerCmt.delete('/admin/comments/:commentId', authMiddleware,  isAdmin, deleteComment);
 
 export default routerCmt;
