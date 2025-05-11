@@ -23,9 +23,8 @@ const commentSchema = new mongoose.Schema({
       status: { type: Boolean, default: true }
     }],
     mentions: [{
-      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      startIndex: Number,
-      endIndex: Number
+      id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      index: Number
     }],
     reactionCounts: {
         like: { type: Number, default: 0 },

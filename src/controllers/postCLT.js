@@ -5,27 +5,125 @@ import Notification from "../models/notification.js";
 import User from "../models/user.js";
 import { getIO } from "../config/socketConfig.js";
 import { uploadMedia, deleteMedia } from "../services/mediaService.js";
-import { deactivateNotifications } from "../services/notificationService.js"; 
-
-// Hàm xử lý tìm mentions trong nội dung
-const extractMentions = async (content) => {
-  const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
-  const mentions = [];
-  let match;
-
-  while ((match = mentionRegex.exec(content)) !== null) {
-    const [fullMatch, username, userId] = match;
-    mentions.push({
-      user: userId,
-      startIndex: match.index,
-      endIndex: match.index + fullMatch.length,
-    });
-  }
-
-  return mentions;
-};
+import { deactivateNotifications, createNotification } from "../services/notificationService.js";
+import mongoose from 'mongoose';
+import Friendship from "../models/friendship.js";
 
 const MAX_MENTIONS = 10;
+
+// Hàm xử lý tìm mentions trong nội dung
+const extractMentions = async (content, userId) => {
+    try {
+        // Regex cho cả hai format: @[Tên] và @[Tên](id)
+        const mentionRegex = /@\[([^\]]+)\](?:\(([^)]+)\))?/g;
+        const mentions = [];
+        let match;
+        const processedUsers = new Set(); // Để tránh mention trùng lặp
+
+        while ((match = mentionRegex.exec(content)) !== null) {
+            const [fullMatch, username, mentionedUserId] = match;
+            
+            let userIdToCheck;
+
+            // Nếu có ID trong format @[Tên](id)
+            if (mentionedUserId) {
+                userIdToCheck = mentionedUserId;
+            } else {
+                // Nếu chỉ có tên @[Tên], tìm user theo tên
+                const user = await User.findOne({
+                    $or: [
+                        { firstName: { $regex: new RegExp(`^${username}$`, 'i') } },
+                        { lastName: { $regex: new RegExp(`^${username}$`, 'i') } },
+                        { 
+                            $expr: {
+                                $regexMatch: {
+                                    input: { $concat: ["$firstName", " ", "$lastName"] },
+                                    regex: new RegExp(`^${username}$`, 'i')
+                                }
+                            }
+                        }
+                    ]
+                });
+
+                if (!user) {
+                    continue; // Bỏ qua nếu không tìm thấy user
+                }
+                userIdToCheck = user._id.toString();
+            }
+
+            // Kiểm tra userId hợp lệ
+            if (!mongoose.Types.ObjectId.isValid(userIdToCheck)) {
+                continue;
+            }
+
+            // Kiểm tra không mention chính mình
+            if (userIdToCheck === userId.toString()) {
+                continue;
+            }
+
+            // Kiểm tra không mention trùng lặp
+            if (processedUsers.has(userIdToCheck)) {
+                continue;
+            }
+
+            // Kiểm tra người dùng tồn tại
+            const mentionedUser = await User.findById(userIdToCheck);
+            if (!mentionedUser) {
+                continue;
+            }
+
+            // Kiểm tra quyền mention (có thể là bạn bè hoặc public profile)
+            const friendship = await Friendship.findOne({
+                users: { $all: [userId, userIdToCheck] },
+                status: 'accepted'
+            });
+
+            const mentionedUserProfile = await User.findById(userIdToCheck)
+                .select('privacy');
+
+            // Cho phép mention nếu là bạn bè hoặc profile public
+            if (friendship || mentionedUserProfile?.privacy === 'public') {
+                mentions.push({
+                    id: userIdToCheck,
+                    index: match.index
+                });
+                processedUsers.add(userIdToCheck);
+            }
+        }
+
+        // Kiểm tra giới hạn số lượng mentions
+        if (mentions.length > MAX_MENTIONS) {
+            throw new Error(`Bạn chỉ có thể gắn thẻ tối đa ${MAX_MENTIONS} người trong một bài viết`);
+        }
+
+        return mentions;
+    } catch (error) {
+        console.error('Error extracting mentions:', error);
+        throw error;
+    }
+};
+
+// Hàm xử lý hashtags
+const extractHashtags = async (content, userId) => {
+    const hashtags = [];
+    const lines = content.split('\n');
+    
+    lines.forEach((line, index) => {
+        const hashtagRegex = /#(\w+)/g;
+        let match;
+        
+        while ((match = hashtagRegex.exec(line)) !== null) {
+            hashtags.push({
+                tag: match[1].toLowerCase(),
+                user: userId,
+                line: index + 1,
+                status: true
+            });
+        }
+    });
+    
+    return hashtags;
+};
 
 // Đăng bài
 export const createPost = async (req, res) => {
@@ -62,56 +160,77 @@ export const createPost = async (req, res) => {
         })
       : [];
     const mediaResults = await Promise.all(mediaPromises);
-    // Xử lý mentions
-    const mentions = await extractMentions(content || "" );
 
-    // Kiểm tra giới hạn mentions
-    if (mentions.length > MAX_MENTIONS) {
-      return res.status(400).json({
-        message: `Bạn chỉ có thể gắn thẻ tối đa ${MAX_MENTIONS} người trong một bài viết`,
-      });
+    // Xử lý mentions
+    let mentions = [];
+    try {
+      mentions = await extractMentions(content || "", author);
+    } catch (error) {
+      return res.status(400).json({ message: error.message });
     }
+
+    // Xử lý hashtags
+    const hashtags = await extractHashtags(content || "", author);
+
     const newPost = new Post({
       author,
       content: content || " ",
       security: security,
       media: mediaResults,
       mentions,
+      hashtags,
+      active: true
     });
 
     await newPost.save();
-    const populatedPost = await Post.findById(newPost._id).populate(
-      "author",
-      "firstName lastName avatar"
-    );
-    // Tạo và gửi thông báo
-    const notifications = await Promise.all(
-      mentions.map(async (mention) => {
-        const notification = new Notification({
-          recipient: mention.user,
-          sender: req.user._id,
-          type: "POST_MENTION",
-          security: security,
-          reference: newPost._id,
-          referenceModel: "Post",
-          content: `${req.user.firstName} ${req.user.lastName} đã nhắc đến bạn trong một bài viết`,
-        });
-        await notification.save();
 
-        // Gửi thông báo realtime
-        getIO()
-          .to(`user_${mention.user}`)
-          .emit("notification", {
-            type: "POST_MENTION",
-            notification: await notification.populate(
-              "sender",
-              "firstName lastName avatar"
-            ),
+    // Populate thông tin tác giả
+    const populatedPost = await Post.findById(newPost._id)
+      .populate("author", "firstName lastName avatar")
+      .populate("mentions.id", "firstName lastName avatar")
+      .populate("hashtags.user", "firstName lastName avatar");
+    // Xử lý mentions: thêm name vào từng mention
+    if (populatedPost.mentions && populatedPost.mentions.length > 0) {
+      populatedPost.mentions = populatedPost.mentions.map((mention) => {
+        const user = mention.id;
+        return {
+          id: user._id,
+          index: mention.index,
+          name: `${user.firstName} ${user.lastName}`
+        };
+      });
+    }
+    // Tạo và gửi thông báo cho những người được mention
+    try {
+      const notifications = await Promise.all(mentions.map(async mention => {
+        try {
+          const notification = await createNotification({
+            recipient: mention.id,
+            sender: author,
+            type: 'POST_MENTION',
+            reference: newPost._id,
+            referenceModel: 'Post',
+            content: `${req.user.firstName} ${req.user.lastName} đã nhắc đến bạn trong một bài viết`
           });
 
-        return notification;
-      })
-    );
+          if (notification) {
+            // Gửi thông báo realtime
+            getIO().to(`user_${mention.id}`).emit('notification', {
+              type: 'POST_MENTION',
+              notification: await notification.populate('sender', 'firstName lastName avatar')
+            });
+          }
+
+          return notification;
+        } catch (error) {
+          console.error('Error creating notification for mention:', error);
+          return null;
+        }
+      }));
+    } catch (error) {
+      console.error('Error creating notifications:', error);
+      // Không trả về lỗi vì post đã được tạo thành công
+    }
 
     res.status(201).json(populatedPost);
   } catch (error) {
@@ -290,16 +409,19 @@ export const updatePost = async (req, res) => {
     res.status(500).json({ message: "Error updating post", error });
   }
 };
+
 // Lấy bài viết theo range
 export const getPostsByRange = async (req, res) => {
   try {
     const { startIndex = 0, limitCount = 10 } = req.query;
 
-    const posts = await Post.find()
+    const posts = await Post.find({ active: true })
       .sort({ createdAt: -1 })
       .skip(parseInt(startIndex))
       .limit(parseInt(limitCount))
       .populate("author", "firstName lastName avatar _id")
+      .populate("mentions.id", "firstName lastName avatar")
+      .populate("hashtags.user", "firstName lastName avatar")
       .populate({
         path: "comments",
         populate: {
@@ -307,7 +429,8 @@ export const getPostsByRange = async (req, res) => {
           select: "firstName lastName avatar",
         },
       });
-    const total = await Post.countDocuments();
+
+    const total = await Post.countDocuments({ active: true });
 
     res.json({
       posts,

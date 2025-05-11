@@ -50,10 +50,11 @@ export const deleteComment = async (req, res) => {
 
 const MAX_MENTIONS = 10;
 
-// Thêm hàm xử lý mentions
+// Hàm xử lý tìm mentions trong nội dung
 const extractMentions = async (content, userId) => {
     try {
-        const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
+        // Regex cho cả hai format: @[Tên] và @[Tên](id)
+        const mentionRegex = /@\[([^\]]+)\](?:\(([^)]+)\))?/g;
         const mentions = [];
         let match;
         const processedUsers = new Set(); // Để tránh mention trùng lặp
@@ -61,44 +62,71 @@ const extractMentions = async (content, userId) => {
         while ((match = mentionRegex.exec(content)) !== null) {
             const [fullMatch, username, mentionedUserId] = match;
             
+            let userIdToCheck;
+
+            // Nếu có ID trong format @[Tên](id)
+            if (mentionedUserId) {
+                userIdToCheck = mentionedUserId;
+            } else {
+                // Nếu chỉ có tên @[Tên], tìm user theo tên
+                const user = await User.findOne({
+                    $or: [
+                        { firstName: { $regex: new RegExp(`^${username}$`, 'i') } },
+                        { lastName: { $regex: new RegExp(`^${username}$`, 'i') } },
+                        { 
+                            $expr: {
+                                $regexMatch: {
+                                    input: { $concat: ["$firstName", " ", "$lastName"] },
+                                    regex: new RegExp(`^${username}$`, 'i')
+                                }
+                            }
+                        }
+                    ]
+                });
+
+                if (!user) {
+                    continue; // Bỏ qua nếu không tìm thấy user
+                }
+                userIdToCheck = user._id.toString();
+            }
+
             // Kiểm tra userId hợp lệ
-            if (!mongoose.Types.ObjectId.isValid(mentionedUserId)) {
+            if (!mongoose.Types.ObjectId.isValid(userIdToCheck)) {
                 continue;
             }
 
             // Kiểm tra không mention chính mình
-            if (mentionedUserId === userId.toString()) {
+            if (userIdToCheck === userId.toString()) {
                 continue;
             }
 
             // Kiểm tra không mention trùng lặp
-            if (processedUsers.has(mentionedUserId)) {
+            if (processedUsers.has(userIdToCheck)) {
                 continue;
             }
 
             // Kiểm tra người dùng tồn tại
-            const mentionedUser = await User.findById(mentionedUserId);
+            const mentionedUser = await User.findById(userIdToCheck);
             if (!mentionedUser) {
                 continue;
             }
 
             // Kiểm tra quyền mention (có thể là bạn bè hoặc public profile)
             const friendship = await Friendship.findOne({
-                users: { $all: [userId, mentionedUserId] },
+                users: { $all: [userId, userIdToCheck] },
                 status: 'accepted'
             });
 
-            const mentionedUserProfile = await User.findById(mentionedUserId)
+            const mentionedUserProfile = await User.findById(userIdToCheck)
                 .select('privacy');
 
             // Cho phép mention nếu là bạn bè hoặc profile public
             if (friendship || mentionedUserProfile?.privacy === 'public') {
                 mentions.push({
-                    user: mentionedUserId,
-                    startIndex: match.index,
-                    endIndex: match.index + fullMatch.length
+                    id: userIdToCheck,
+                    index: match.index
                 });
-                processedUsers.add(mentionedUserId);
+                processedUsers.add(userIdToCheck);
             }
         }
 
@@ -202,7 +230,7 @@ export const createComment = async (req, res) => {
             const notifications = await Promise.all(mentions.map(async mention => {
                 try {
                     const notification = await createNotification({
-                        recipient: mention.user,
+                        recipient: mention.id,
                         sender: req.user._id,
                         type: 'COMMENT_MENTION',
                         reference: newComment._id,
@@ -212,7 +240,7 @@ export const createComment = async (req, res) => {
 
                     if (notification) {
                         // Gửi thông báo realtime
-                        getIO().to(`user_${mention.user}`).emit('notification', {
+                        getIO().to(`user_${mention.id}`).emit('notification', {
                             type: 'COMMENT_MENTION',
                             notification: await notification.populate('sender', 'firstName lastName avatar')
                         });
@@ -232,7 +260,7 @@ export const createComment = async (req, res) => {
         // Trả về comment đã được populate với thông tin author và mentions
         const populatedComment = await Comment.findById(newComment._id)
             .populate('author', 'firstName lastName avatar')
-            .populate('mentions.user', 'firstName lastName avatar')
+            .populate('mentions.id', 'firstName lastName avatar')
             .populate('hashtags.user', 'firstName lastName avatar');
 
         res.status(201).json(populatedComment);

@@ -28,11 +28,16 @@ const postSchema = new mongoose.Schema(
     },
     mentions: [
       {
-        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        startIndex: Number, // Vị trí bắt đầu của mention trong content
-        endIndex: Number, // Vị trí kết thúc của mention trong content
+        id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        index: Number
       },
     ],
+    hashtags: [{
+      tag: { type: String },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      line: Number,
+      status: { type: Boolean, default: true }
+    }],
     group: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Group' 
