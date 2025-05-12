@@ -284,7 +284,86 @@ export const createPost = async (req, res) => {
     });
   }
 };
+export const updatePost = async (req, res) => {
+  try {
+    // 1. Lấy post gốc
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
+    // 2. Cập nhật content & security nếu có
+    const { content, security, existingMedia } = req.body;
+    if (content !== undefined) {
+      post.content = content.trim();
+    }
+    if (security !== undefined) {
+      post.security = security;
+    }
+
+    // 3. Xử lý xóa media cũ
+    // existingMedia là chuỗi JSON array các publicId hoặc _id mà client muốn giữ
+    // 3. Xử lý xóa media cũ
+    let keepList = [];
+    if (existingMedia) {
+      keepList = JSON.parse(existingMedia);
+      // VD: ["https://.../grr69l7jjrylk9bixxto.webp", "68218810e6c3d0ef79e977a0"]
+    }
+
+    // Tách những media cần xóa:
+    const toRemove = post.media.filter(
+      (m) =>
+        // nếu cả URL lẫn _id đều không có trong keepList
+        !keepList.includes(m.url) && !keepList.includes(m._id.toString())
+    );
+
+    // Giữ lại media client muốn:
+    post.media = post.media.filter(
+      (m) => keepList.includes(m.url) || keepList.includes(m._id.toString())
+    );
+
+    // 4. Xóa file trên storage cho mỗi media bị loại
+    await Promise.all(
+      toRemove.map((m) => {
+        // nếu bạn xóa bằng publicId, có thể trích từ URL:
+        // const publicId = m.publicId || extractFromUrl(m.url);
+        return deleteMedia(m.publicId);
+      })
+    );
+
+    // 5. Xử lý upload file mới (nếu có)
+    const files = req.files || [];
+    if (files.length > 0) {
+      const newMedia = await Promise.all(
+        files.map(async (file) => {
+          let type = null;
+          if (file.mimetype.startsWith("image/")) type = "image";
+          else if (file.mimetype.startsWith("video/")) type = "video";
+          else throw new Error("Invalid file type");
+
+          return await uploadMedia(file, type);
+        })
+      );
+
+      // Append media mới
+      post.media = post.media.concat(newMedia);
+    }
+
+    // 6. Lưu và trả về kết quả đã populate
+    await post.save();
+    const updated = await Post.findById(post._id)
+      .populate("author", "firstName lastName avatar")
+      .populate("mentions.id", "firstName lastName avatar")
+      .populate("hashtags.user", "firstName lastName avatar");
+
+    return res.json(updated);
+  } catch (error) {
+    console.error("Error updating post:", error);
+    return res
+      .status(500)
+      .json({ message: "Error updating post", error: error.message });
+  }
+};
 // Share bài viết
 export const sharePost = async (req, res) => {
   try {
@@ -406,32 +485,6 @@ export const deletePost = async (req, res) => {
   }
 };
 
-// Sửa bài đăng
-export const updatePost = async (req, res) => {
-  const { content } = req.body;
-  const media = req.files; // Lấy các tệp đã tải lên
-
-  try {
-    const post = await Post.findById(req.params.postId);
-    if (!post) return res.status(404).json({ message: "Post not found" });
-
-    // Cập nhật nội dung nếu có
-    if (content) {
-      post.content = content.trim();
-    }
-
-    // Cập nhật media nếu có tệp mới được tải lên
-    if (media && media.length > 0) {
-      post.media = media.map((file) => file.path);
-    }
-
-    await post.save();
-    res.json(post);
-  } catch (error) {
-    res.status(500).json({ message: "Error updating post", error });
-  }
-};
-
 // Lấy bài viết theo range
 export const getPostsByRange = async (req, res) => {
   try {
@@ -539,7 +592,7 @@ export const getAllVisiblePosts = async (req, res) => {
     // 1. Bài Public
     // 2. Bài của bạn bè có quyền "MyFriend"
     // 3. Bài của chính mình (không quan tâm quyền)
-    console.log("frid",friendIds);
+    console.log("frid", friendIds);
     const query = {
       active: true,
       $or: [
