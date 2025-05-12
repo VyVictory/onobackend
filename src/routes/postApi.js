@@ -1,7 +1,7 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
 import checkPostAccess from '../middleware/postAccessMiddleware.js';
-import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, updatePost, getPostsByRange, searchPosts,getPostByRange,togglePostBan, isNotification } from '../controllers/postCLT.js';
+import { createPost, getPost, getPosts, deletePost, sharePost, recallPost, updatePost, getPostsByRange, searchPosts,getPostByRange,togglePostBan, isNotification, getMyPost, getPostByUserByRange, getAllVisiblePosts } from '../controllers/postCLT.js';
 import multer from 'multer';
 import { toggleReaction, getReactions } from '../controllers/reactionCTL.js';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
@@ -47,6 +47,11 @@ routerPost.post('/:postId/recall', authMiddleware, recallPost);
 routerPost.get('/getpost/:postId', authMiddleware, getPost);
 routerPost.get('/all', authMiddleware, getPosts);
 routerPost.get('/postByRange', authGetProfile, getPostsByRange);
+routerPost.get('/myPostByRange', authGetProfile, getMyPost);
+routerPost.get('/postByUser/:userId', authGetProfile, getPostByUserByRange);
+routerPost.get('/getAllVisiblePost', authGetProfile, getAllVisiblePosts);
+
+
 routerPost.delete('/:postId', authMiddleware, deletePost);
 routerPost.put('/:postId', upload.array('media', 10), authMiddleware, updatePost);
 routerPost.get('/range', authMiddleware, getPostsByRange);

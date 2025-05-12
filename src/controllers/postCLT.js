@@ -109,6 +109,18 @@ const extractMentions = async (content, userId) => {
     throw error;
   }
 };
+const postPopulates = [
+  { path: "author", select: "firstName lastName avatar _id" },
+  { path: "mentions.id", select: "firstName lastName avatar" },
+  { path: "hashtags.user", select: "firstName lastName avatar" },
+  {
+    path: "comments",
+    populate: {
+      path: "author",
+      select: "firstName lastName avatar",
+    },
+  },
+];
 
 // Hàm xử lý hashtags
 const extractHashtags = async (content, userId) => {
@@ -423,30 +435,126 @@ export const updatePost = async (req, res) => {
 // Lấy bài viết theo range
 export const getPostsByRange = async (req, res) => {
   try {
-    const { startIndex = 0, limitCount = 10 } = req.query;
+    const { start, limit } = req.query;
 
     const posts = await Post.find({ active: true })
       .sort({ createdAt: -1 })
-      .skip(parseInt(startIndex))
-      .limit(parseInt(limitCount))
-      .populate("author", "firstName lastName avatar _id")
-      .populate("mentions.id", "firstName lastName avatar")
-      .populate("hashtags.user", "firstName lastName avatar")
-      .populate({
-        path: "comments",
-        populate: {
-          path: "author",
-          select: "firstName lastName avatar",
-        },
-      });
-
+      .skip(parseInt(start || 0))
+      .limit(parseInt(limit || 10))
+      .populate(postPopulates);
     const total = await Post.countDocuments({ active: true });
 
     res.json({
       posts,
       total,
-      hasMore: total > parseInt(startIndex) + posts.length,
+      hasMore: total > parseInt(start) + posts.length,
     });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy bài viết", error: error.message });
+  }
+};
+
+export const getMyPost = async (req, res) => {
+  try {
+    const { start, limit } = req.query;
+    const myId = req?.user?._id;
+    const posts = await Post.find({ active: true, author: myId })
+      .sort({ createdAt: -1 })
+      .skip(parseInt(start || 0))
+      .limit(parseInt(limit || 10))
+      .populate(postPopulates);
+    const total = await Post.countDocuments({ active: true });
+    res.json({
+      posts,
+      total,
+      hasMore: total > parseInt(start) + posts.length,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy bài viết", error: error.message });
+  }
+};
+
+export const getPostByUserByRange = async (req, res) => {
+  try {
+    const { start, limit } = req.query;
+    const myId = req?.user?._id;
+    const userId = req.params.userId;
+
+    const friendship = await Friendship.findOne({
+      $or: [
+        { requester: myId, recipient: userId },
+        { requester: userId, recipient: myId },
+      ],
+    });
+
+    let query = {
+      active: true,
+      author: userId,
+    };
+
+    if (friendship?.status === "accepted") {
+      query.security = { $in: ["Public", "MyFriend"] };
+    } else {
+      query.security = "Public";
+    }
+
+    const posts = await Post.find(query)
+      .sort({ createdAt: -1 })
+      .skip(parseInt(start || 0))
+      .limit(parseInt(limit || 10))
+      .populate(postPopulates);
+
+    const total = await Post.countDocuments(query);
+
+    res.json({
+      posts,
+      total,
+      hasMore: total > parseInt(start || 0) + posts.length,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy bài viết", error: error.message });
+  }
+};
+export const getAllVisiblePosts = async (req, res) => {
+  try {
+    const myId = req.user?._id;
+
+    // Tìm tất cả mối quan hệ bạn bè đã được chấp nhận
+    const friendships = await Friendship.find({
+      status: "accepted",
+      $or: [{ requester: myId }, { recipient: myId }],
+    });
+    // Lấy danh sách userId của bạn bè
+    const friendIds = friendships.map((f) => {
+      return f.requester.equals(myId) ? f.recipient : f.requester;
+    });
+
+    // Truy vấn bài viết:
+    // 1. Bài Public
+    // 2. Bài của bạn bè có quyền "MyFriend"
+    // 3. Bài của chính mình (không quan tâm quyền)
+    console.log("frid",friendIds);
+    const query = {
+      active: true,
+      $or: [
+        { security: "Public" },
+        { security: "MyFriend", author: { $in: friendIds } },
+        { author: myId },
+      ],
+    };
+
+    const posts = await Post.find(query)
+      .sort({ createdAt: -1 })
+      .populate(postPopulates)
+      .exec();
+
+    res.json({ posts, total: posts.length });
   } catch (error) {
     res
       .status(500)

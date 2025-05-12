@@ -60,22 +60,22 @@ postSchema.index({ content: "text" });
 postSchema.index({ createdAt: -1 });
 
 // Middleware để kiểm tra quyền xem bài đăng
-postSchema.pre('find', function(next) {
-    this._conditions = {
-        ...this._conditions,
-        $or: [
-            { security: 'Public' },
-            { security: 'Private', author: this._conditions.currentUser },
-            {
-              security: 'MyFriend',
-                author: { 
-                    $in: this._conditions.friendIds || [] 
-                }
-            }
-        ]
-    };
-    next();
-});
+// postSchema.pre('find', function(next) {
+//     this._conditions = {
+//         ...this._conditions,
+//         $or: [
+//             { security: 'Public' },
+//             { security: 'Private', author: this._conditions.currentUser },
+//             {
+//               security: 'MyFriend',
+//                 author: { 
+//                     $in: this._conditions.friendIds || [] 
+//                 }
+//             }
+//         ]
+//     };
+//     next();
+// });
 
 const Post = mongoose.model("Post", postSchema);
 
