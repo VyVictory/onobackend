@@ -25,6 +25,7 @@ const authMiddleware = (req, res, next) => {
 
 export const isAdmin = async (req, res, next) => {
     try {
+        console.log(req.user)
         if (!req.user || req.user.role !== '1') {
             return res.status(403).json({ 
                 message: 'Bạn không có quyền truy cập chức năng này' 

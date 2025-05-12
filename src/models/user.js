@@ -58,6 +58,13 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+// Default filter: status === true
+userSchema.pre(/^find/, function (next) {
+  if (!this.getQuery().hasOwnProperty("status")) {
+    this.where({ status: true });
+  }
+  next();
+});
 
 // Thêm indexes
 userSchema.index({ firstName: 1 });

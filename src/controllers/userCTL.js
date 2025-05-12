@@ -182,7 +182,6 @@ export const searchUsers = async (req, res) => {
       .json({ message: "Lỗi khi tìm kiếm người dùng", error: error.message });
   }
 };
-
 export const updateUserProfile = async (req, res) => {
   try {
     const userId = req.user?._id;
@@ -222,25 +221,34 @@ export const updateUserProfile = async (req, res) => {
 
     // ✅ Xử lý upload avatar
     if (req.files?.avatar) {
-      const avatarUpload = await cloudinary.uploader.upload(req.files.avatar[0].path, {
-        folder: "ono/avatars",
-        transformation: [{ width: 500, height: 500, crop: "fill" }],
-      });
+      const avatarUpload = await cloudinary.uploader.upload(
+        req.files.avatar[0].path,
+        {
+          folder: "ono/avatars",
+          transformation: [{ width: 500, height: 500, crop: "fill" }],
+        }
+      );
       updateData.avatar = avatarUpload.secure_url;
     }
 
     // ✅ Xử lý upload ảnh bìa (coverPhoto)
     if (req.files?.coverPhoto) {
-      const coverUpload = await cloudinary.uploader.upload(req.files.coverPhoto[0].path, {
-        folder: "ono/covers",
-        transformation: [{ width: 1920, height: 1080, crop: "fill" }],
-      });
+      const coverUpload = await cloudinary.uploader.upload(
+        req.files.coverPhoto[0].path,
+        {
+          folder: "ono/covers",
+          transformation: [{ width: 1920, height: 1080, crop: "fill" }],
+        }
+      );
       updateData.coverPhoto = coverUpload.secure_url;
     }
 
     // ✅ Cập nhật user trong database
-    const updatedUser = await User.findByIdAndUpdate(userId, { $set: updateData }, { new: true, runValidators: true })
-      .select("-password"); // Loại bỏ password khỏi dữ liệu trả về
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password"); // Loại bỏ password khỏi dữ liệu trả về
 
     if (!updatedUser) {
       return res.status(404).json({ message: "Không tìm thấy người dùng" });
@@ -256,107 +264,192 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
+export const AdminUpdateUserProfile = async (req, res) => {
+  try {
+    let { userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "ID người dùng không hợp lệ" });
+    }
+
+    // Lấy dữ liệu từ request body
+    const {
+      firstName,
+      lastName,
+      gender,
+      title,
+      birthDate,
+      education,
+      street,
+      ward,
+      district,
+      city,
+      country,
+      email,
+      phoneNumber,
+    } = req.body;
+
+    // Tạo đối tượng cập nhật
+    const updateData = {
+      firstName,
+      lastName,
+      gender,
+      email,
+      birthDate,
+      education,
+      address: { street, ward, district, city, country },
+      phoneNumber,
+      title,
+    };
+
+    // ✅ Xử lý upload avatar
+    if (req.files?.avatar) {
+      const avatarUpload = await cloudinary.uploader.upload(
+        req.files.avatar[0].path,
+        {
+          folder: "ono/avatars",
+          transformation: [{ width: 500, height: 500, crop: "fill" }],
+        }
+      );
+      updateData.avatar = avatarUpload.secure_url;
+    }
+
+    // ✅ Xử lý upload ảnh bìa (coverPhoto)
+    if (req.files?.coverPhoto) {
+      const coverUpload = await cloudinary.uploader.upload(
+        req.files.coverPhoto[0].path,
+        {
+          folder: "ono/covers",
+          transformation: [{ width: 1920, height: 1080, crop: "fill" }],
+        }
+      );
+      updateData.coverPhoto = coverUpload.secure_url;
+    }
+
+    // ✅ Cập nhật user trong database
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password"); // Loại bỏ password khỏi dữ liệu trả về
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error("Lỗi cập nhật thông tin người dùng:", error);
+    res.status(500).json({
+      message: "Lỗi khi cập nhật thông tin người dùng",
+      error: error.message,
+    });
+  }
+};
 // Lấy danh sách người dùng (cho admin)
 export const getUsers = async (req, res) => {
-    try {
-        const { page = 1, limit = 10, search = '' } = req.query;
-        const query = {};
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+    const query = {};
 
-        if (search) {
-            query.$or = [
-                { firstName: { $regex: search, $options: 'i' } },
-                { lastName: { $regex: search, $options: 'i' } },
-                { email: { $regex: search, $options: 'i' } }
-            ];
-        }
-
-        const users = await User.find(query)
-            .select('-password')
-            .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
-
-        const total = await User.countDocuments(query);
-
-        res.json({
-            users,
-            totalPages: Math.ceil(total / limit),
-            currentPage: page
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
     }
+
+    const users = await User.find(query)
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // Ban/Unban người dùng
 export const toggleUserBan = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { reason } = req.body;
+  try {
+    const { userId } = req.params;
+    const { reason } = req.body;
 
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-        }
-
-        // Không cho phép ban admin khác
-        if (user.role === 'admin' && req.user._id.toString() !== user._id.toString()) {
-            return res.status(403).json({ message: 'Không thể ban tài khoản admin khác' });
-        }
-
-        user.active = !user.active;
-        if (reason) {
-            user.banReason = reason;
-        }
-
-        await user.save();
-
-        // Nếu ban user, cũng sẽ ban tất cả bài viết và bình luận của user đó
-        if (!user.active) {
-            await Post.updateMany(
-                { author: userId },
-                { active: false }
-            );
-            await Comment.updateMany(
-                { author: userId },
-                { active: false }
-            );
-        }
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
+
+    // Không cho phép ban admin khác
+    if (
+      user.role === "admin" &&
+      req.user._id.toString() !== user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Không thể ban tài khoản admin khác" });
+    }
+
+    // user.active = !user.active;
+    if (reason && (reason === true || reason === false)) {
+      user.banned = reason;
+    } else {
+      user.banned = !user.banned;
+    }
+
+    await user.save();
+
+    // Nếu ban user, cũng sẽ ban tất cả bài viết và bình luận của user đó
+    // if (!user.active) {
+    //   await Post.updateMany({ author: userId }, { active: false });
+    //   await Comment.updateMany({ author: userId }, { active: false });
+    // }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 // Xóa người dùng
 export const deleteUser = async (req, res) => {
-    try {
-        const { userId } = req.params;
+  try {
+    const { userId } = req.params;
 
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-        }
-
-        // Không cho phép xóa admin khác
-        if (user.role === 'admin' && req.user._id.toString() !== user._id.toString()) {
-            return res.status(403).json({ message: 'Không thể xóa tài khoản admin khác' });
-        }
-
-        // Xóa tất cả bài viết và bình luận của user
-        await Post.deleteMany({ author: userId });
-        await Comment.deleteMany({ author: userId });
-
-        // Xóa user
-        await user.delete();
-
-        res.json({ message: 'Đã xóa người dùng thành công' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
     }
+
+    // Không cho phép xóa admin khác
+    if (
+      user.role === "admin" &&
+      req.user._id.toString() !== user._id.toString()
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Không thể xóa tài khoản admin khác" });
+    }
+
+    // Xóa tất cả bài viết và bình luận của user
+    // await Post.deleteMany({ author: userId });
+    // await Comment.deleteMany({ author: userId });
+
+    // Xóa user
+    // await user.delete();
+    user.status = false;
+    await user.save();
+
+    res.json({ message: "Đã xóa người dùng thành công" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
-
-
-
- 
