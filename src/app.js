@@ -14,6 +14,7 @@ import routerMessage from "./routes/mesApi.js";
 import routerBookmark from "./routes/bookmarkApi.js";
 import routerFollow from "./routes/followApi.js";
 import passport from "./config/passport.js";
+import routerReport from './routes/reportRoutes.js';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/friend", routerFriendship);
 app.use("/message", routerMessage);
 app.use("/bookmark", routerBookmark);
 app.use("/follow", routerFollow);
+app.use('/report', routerReport);
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   res.status(500).json({ message: "Internal Server Error" });
