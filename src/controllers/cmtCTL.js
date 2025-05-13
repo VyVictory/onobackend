@@ -346,6 +346,41 @@ export const createComment = async (req, res) => {
           .to(`user_${cmtData.author}`)
           .emit("notification", socketPayload);
       }
+      if (!idCmt && post.author != req.user._id) {
+        const notification = new Notification({
+          recipient: post.author,
+          sender: req.user._id,
+          type: "COMMENT",
+          reference: newComment._id,
+          referenceModel: "Comment",
+          content: `${req.user.firstName} ${req.user.lastName} vừa để lại một bình luận trong bài của bạn`,
+        });
+        console.log(notification);
+        await notification.save();
+        await notification.populate("sender", "firstName lastName avatar");
+
+        // Gửi thông báo socket với cấu trúc chuẩn hóa
+        const socketPayload = {
+          _id: notification._id,
+          type: notification.type || "",
+          content: notification.content || "",
+          createdAt: notification.createdAt || "",
+          updatedAt: notification.updatedAt || "",
+          isActive: notification.isActive ?? true,
+          isRead: notification.isRead ?? false,
+          recipient: notification.recipient || "",
+          sender: {
+            _id: notification.sender?._id || "",
+            firstName: notification.sender?.firstName || "",
+            lastName: notification.sender?.lastName || "",
+            avatar: notification.sender?.avatar || "",
+          },
+          reference: notification.reference || "",
+          referenceModel: notification.referenceModel || "",
+          __v: 0,
+        };
+        getIO().to(`user_${post.author}`).emit("notification", socketPayload);
+      }
     } catch (error) {}
     // Tạo và gửi thông báo cho những người được mention
     try {
