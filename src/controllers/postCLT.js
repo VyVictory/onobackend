@@ -399,7 +399,7 @@ export const recallPost = async (req, res) => {
 // Lấy bài viết
 export const getPost = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.postId);
+    const post = await Post.findById(req.params.postId).populate(postPopulates);
     if (!post) {
       return res.status(404).json({ message: "Post not found" });
     }
@@ -421,10 +421,10 @@ export const getPosts = async (req, res) => {
     }
 
     const posts = await Post.find(query)
-      .populate("author", "firstName lastName avatar")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .populate(postPopulates);
 
     const total = await Post.countDocuments(query);
 
@@ -468,20 +468,24 @@ export const deletePost = async (req, res) => {
   try {
     const { postId } = req.params;
 
+    // Kiểm tra xem bài viết có tồn tại không
     const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: "Không tìm thấy bài viết" });
     }
 
-    // Xóa tất cả bình luận của bài viết
+    // Xóa tất cả bình luận liên quan đến bài viết
     await Comment.deleteMany({ post: postId });
 
     // Xóa bài viết
-    await post.delete();
+    await Post.findByIdAndDelete(postId);
 
-    res.json({ message: "Đã xóa bài viết thành công" });
+    return res.json({ message: "Đã xóa bài viết thành công" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Lỗi khi xóa bài viết:", error);
+    return res
+      .status(500)
+      .json({ message: "Lỗi máy chủ", error: error.message });
   }
 };
 
@@ -574,6 +578,7 @@ export const getPostByUserByRange = async (req, res) => {
       .json({ message: "Lỗi khi lấy bài viết", error: error.message });
   }
 };
+
 export const getAllVisiblePosts = async (req, res) => {
   try {
     const myId = req.user?._id;

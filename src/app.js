@@ -15,6 +15,7 @@ import routerBookmark from "./routes/bookmarkApi.js";
 import routerFollow from "./routes/followApi.js";
 import passport from "./config/passport.js";
 import routerReport from './routes/reportRoutes.js';
+import routerLike from "./routes/likeApi.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use(passport.initialize());
 app.use("/auth", authRoutes);
 app.use("/user", routerUser);
 app.use("/post", routerPost);
+app.use("/like", routerLike);
 app.use("/cmt", routerCmt);
 app.use("/group", routerGroup);
 app.use("/noti", routerNotifi);

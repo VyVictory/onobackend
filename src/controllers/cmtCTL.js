@@ -61,20 +61,16 @@ export const getCommentPost = async (req, res) => {
     res.status(500).json({ message: "Lỗi khi lấy danh sách bình luận" });
   }
 };
-// Lấy tất cả bình luận
 export const getComments = async (req, res) => {
   try {
-    const comments = await Comment.find();
-    res.json(comments);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching comments", error });
-  }
-  try {
     const { page = 1, limit = 10, search = "" } = req.query;
-    const query = {};
 
-    if (search) {
-      query.$or = [{ content: { $regex: search, $options: "i" } }];
+    const query = {
+      status: true, // Chỉ lấy bình luận đang hoạt động
+    };
+
+    if (search.trim() !== "") {
+      query.content = { $regex: search, $options: "i" };
     }
 
     const comments = await Comment.find(query)
@@ -87,12 +83,12 @@ export const getComments = async (req, res) => {
     const total = await Comment.countDocuments(query);
 
     res.json({
-      comments,
+      data: comments,
       totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      currentPage: parseInt(page),
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Lỗi khi lấy bình luận", error });
   }
 };
 
@@ -111,7 +107,21 @@ export const deleteComment = async (req, res) => {
     res.status(500).json({ message: "Error deleting comment", error });
   }
 };
+// Xóa bình luận
+export const hiddenComment = async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.commentId);
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+    comment.active = !comment.active;
+    await comment.save();
 
+    res.status(200).json({ message: "Comment deleted (soft)" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting comment", error });
+  }
+};
 const MAX_MENTIONS = 10;
 
 // Hàm xử lý tìm mentions trong nội dung
@@ -297,7 +307,46 @@ export const createComment = async (req, res) => {
     // Thêm comment vào post
     post.comments.push(newComment._id);
     await post.save();
+    try {
+      const cmtData = await Comment.findById(idCmt);
+      if (idCmt && cmtData.author != req.user._id) {
+        const notification = new Notification({
+          recipient: cmtData.author,
+          sender: req.user._id,
+          type: "COMMENT",
+          reference: newComment._id,
+          referenceModel: "Comment",
+          content: `${req.user.firstName} ${req.user.lastName} vừa trả lời bình luận của bạn`,
+        });
+        console.log(notification);
+        await notification.save();
+        await notification.populate("sender", "firstName lastName avatar");
 
+        // Gửi thông báo socket với cấu trúc chuẩn hóa
+        const socketPayload = {
+          _id: notification._id,
+          type: notification.type || "",
+          content: notification.content || "",
+          createdAt: notification.createdAt || "",
+          updatedAt: notification.updatedAt || "",
+          isActive: notification.isActive ?? true,
+          isRead: notification.isRead ?? false,
+          recipient: notification.recipient || "",
+          sender: {
+            _id: notification.sender?._id || "",
+            firstName: notification.sender?.firstName || "",
+            lastName: notification.sender?.lastName || "",
+            avatar: notification.sender?.avatar || "",
+          },
+          reference: notification.reference || "",
+          referenceModel: notification.referenceModel || "",
+          __v: 0,
+        };
+        getIO()
+          .to(`user_${cmtData.author}`)
+          .emit("notification", socketPayload);
+      }
+    } catch (error) {}
     // Tạo và gửi thông báo cho những người được mention
     try {
       const notifications = await Promise.all(

@@ -6,7 +6,8 @@ import {
     reportUser,
     reportComment,
     getReports,
-    updateReportStatus
+    updateReportStatus,
+    deleteReport
 } from '../controllers/reportCTL.js';
 
 const routerReport = express.Router();
@@ -19,5 +20,6 @@ routerReport.post('/comment', authMiddleware, reportComment);
 // Routes cho admin
 routerReport.get('/admin', authMiddleware, isAdmin, getReports);
 routerReport.put('/admin/status', authMiddleware, isAdmin, updateReportStatus);
+routerReport.delete('/admin', authMiddleware, isAdmin, deleteReport);
 
 export default routerReport;
