@@ -12,6 +12,7 @@ import {
 import mongoose from "mongoose";
 import Friendship from "../models/friendship.js";
 import Comment from "../models/comment.js";
+import Follow from "../models/follow.js";
 
 const MAX_MENTIONS = 10;
 
@@ -219,6 +220,43 @@ export const createPost = async (req, res) => {
     });
 
     await newPost.save();
+
+    // Tìm tất cả người theo dõi
+    const followers = await Follow.find({ following: author });
+
+    // Tạo thông báo cho mỗi người theo dõi
+    const followerNotifications = await Promise.all(
+      followers.map(async (follow) => {
+        try {
+          const notification = await createNotification({
+            recipient: follow.follower,
+            sender: author,
+            type: "POST",
+            reference: newPost._id,
+            referenceModel: "Post",
+            content: `${req.user.firstName} ${req.user.lastName} vừa đăng một bài viết mới`,
+          });
+
+          if (notification) {
+            // Gửi thông báo realtime
+            getIO()
+              .to(`user_${follow.follower}`)
+              .emit("notification", {
+                type: "POST",
+                notification: await notification.populate(
+                  "sender",
+                  "firstName lastName avatar"
+                ),
+              });
+          }
+
+          return notification;
+        } catch (error) {
+          console.error("Error creating notification for follower:", error);
+          return null;
+        }
+      })
+    );
 
     // Populate thông tin tác giả
     const populatedPost = await Post.findById(newPost._id)
