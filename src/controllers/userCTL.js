@@ -32,6 +32,23 @@ export const getProfile = async (req, res) => {
       .json({ message: "Error fetching profile", error: error.message });
   }
 };
+export const getListAdmin = async (req, res) => {
+  try {
+    const users = await User.find({ role: "1" }).select(
+      "lastName firstName avatar _id"
+    );
+
+    res.status(200).json({
+      users,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Lỗi khi lấy danh sách người dùng",
+      error: error.message,
+    });
+  }
+};
+
 export const getCurrentUser = async (req, res) => {
   try {
     // Tìm user theo ID và loại bỏ password

@@ -15,7 +15,8 @@ import {
   getUsers,
   toggleUserBan,
   deleteUser,
-  AdminUpdateUserProfile
+  AdminUpdateUserProfile,
+  getListAdmin
 } from "../controllers/userCTL.js";
 import { isAdmin } from "../middleware/authMiddleware.js";
 
@@ -34,7 +35,7 @@ routerUser.get("/finduser/:name", getUsersByUsername);
 routerUser.get('/mention-suggestions', authMiddleware, searchFriendsForMention);
 routerUser.get('/search', authMiddleware, searchUsers);
 routerUser.put('/profile/update', authMiddleware,uploadUserPhotos, updateUserProfile);
-
+routerUser.get('/list/admin',authMiddleware, getListAdmin)
 routerUser.put('/admin/profile/update/:userId', authMiddleware,isAdmin,uploadUserPhotos, AdminUpdateUserProfile);
 routerUser.get('/admin/users',authMiddleware,isAdmin, getUsers);
 routerUser.put('/admin/users/:userId/ban',authMiddleware, isAdmin, toggleUserBan);

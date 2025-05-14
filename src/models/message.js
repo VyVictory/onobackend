@@ -1,54 +1,85 @@
-import mongoose from 'mongoose';
-import monment from 'mongoose-timestamp';
+import mongoose from "mongoose";
+import monment from "mongoose-timestamp";
 
-const messageSchema = new mongoose.Schema({
-    sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    receiver: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    content: { type: String, default: '' },
-    media: [{
+const messageSchema = new mongoose.Schema(
+  {
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    receiver: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    content: { type: String, default: "" },
+    media: [
+      {
         url: { type: String, required: true },
-        type: { type: String, enum: ['image', 'video', 'gif', 'voice'], required: true },
+        type: {
+          type: String,
+          enum: ["image", "video", "gif", "voice"],
+          required: true,
+        },
         thumbnail: String,
         publicId: String,
-        duration: Number
-    }],
+        duration: Number,
+      },
+    ],
     messageType: {
-        type: String,
-        enum: ['text', 'image', 'video', 'gif', 'sticker', 'voice', 'file'],
-        default: 'text'
+      type: String,
+      enum: ["text", "image", "video", "gif", "sticker", "voice", "file"],
+      default: "text",
     },
     file: {
-        url: { type: String },
-        type: { type: String }, // MIME type của file
-        duration: { type: Number }, // Cho voice và video
-        thumbnail: { type: String } // Cho video và gif
+      url: { type: String },
+      type: { type: String }, // MIME type của file
+      duration: { type: Number }, // Cho voice và video
+      thumbnail: { type: String }, // Cho video và gif
+    },
+    share: {
+      type: {
+        type: String,
+        enum: ["post", "comment"],
+        default: "post",
+      },
+
+      id: { type: mongoose.Schema.Types.ObjectId, default: null },
     },
     status: {
-        type: String,
-        enum: ['sent', 'delivered', 'seen'],
-        default: 'sent'
+      type: String,
+      enum: ["sent", "delivered", "seen"],
+      default: "sent",
     },
     statusTimestamps: {
-        sent: { type: Date, default: () => monment().tz('Asia/Ho_Chi_Minh').toDate() },
-        delivered: Date,
-        seen: Date
+      sent: {
+        type: Date,
+        default: () => monment().tz("Asia/Ho_Chi_Minh").toDate(),
+      },
+      delivered: Date,
+      seen: Date,
     },
     isRecalled: { type: Boolean, default: false },
-    reactions: [{
-        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-        type: { 
-            type: String, 
-            enum: ['like', 'love', 'haha', 'wow', 'sad', 'angry']
-        }
-    }]
-}, { 
-    timestamps: true 
-});
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        type: {
+          type: String,
+          enum: ["like", "love", "haha", "wow", "sad", "angry"],
+        },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
 
 // Thêm index cho việc tìm kiếm tin nhắn
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 messageSchema.index({ receiver: 1, status: 1 });
 
-const Message = mongoose.model('Message', messageSchema);
+const Message = mongoose.model("Message", messageSchema);
 
 export default Message;
