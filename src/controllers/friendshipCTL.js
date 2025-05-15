@@ -182,12 +182,11 @@ export const cancelRequest = async (req, res) => {
   }
 };
 
-// Lấy danh sách bạn bè
-export const getFriends = async (req, res) => {
+export const getFriendsByUser = async (req, res) => {
   try {
-    const { startIndex = 0, limitCount = 2 } = req.query;
-    const userId = req.user._id;
-
+    const { startIndex = 0, limitCount = 2, name = "" } = req.query;
+    const { userId } = req.params;
+    // Tìm các mối quan hệ bạn bè đã được chấp nhận
     const friendships = await Friendship.find({
       users: userId,
       status: "accepted",
@@ -196,16 +195,28 @@ export const getFriends = async (req, res) => {
       .limit(parseInt(limitCount) + 1) // Lấy thêm 1 để kiểm tra hasMore
       .populate("users", "firstName lastName avatar email");
 
-    // Lọc danh sách bạn bè, loại bỏ chính user hiện tại
-    const friends = friendships.map((friendship) => {
+    // Lọc ra user bạn bè (không phải user hiện tại)
+    let friends = friendships.map((friendship) => {
       return friendship.users.find(
         (user) => user._id.toString() !== userId.toString()
       );
     });
 
-    const hasMore = friends.length > parseInt(limitCount);
-    if (hasMore) friends.pop(); // Xóa bạn bè dư ra để đúng limit
+    // Nếu có name để tìm kiếm, lọc friends theo firstName hoặc lastName chứa từ khóa (không phân biệt hoa thường)
+    if (name.trim()) {
+      const keyword = name.trim().toLowerCase();
+      friends = friends.filter(
+        (friend) =>
+          (friend.firstName &&
+            friend.firstName.toLowerCase().includes(keyword)) ||
+          (friend.lastName && friend.lastName.toLowerCase().includes(keyword))
+      );
+    }
 
+    const hasMore = friends.length > parseInt(limitCount);
+    if (hasMore) friends.pop(); // Xóa phần tử dư để đúng limit
+
+    // Lấy tổng số bạn bè đã chấp nhận
     const total = await Friendship.countDocuments({
       users: userId,
       status: "accepted",
@@ -222,6 +233,59 @@ export const getFriends = async (req, res) => {
       .json({ message: "Lỗi khi lấy danh sách bạn bè", error: error.message });
   }
 };
+export const getFriends = async (req, res) => {
+  try {
+    const { startIndex = 0, limitCount = 2, name = "" } = req.query;
+    const userId = req.user._id;
+
+    // Tìm các mối quan hệ bạn bè đã được chấp nhận
+    const friendships = await Friendship.find({
+      users: userId,
+      status: "accepted",
+    })
+      .skip(parseInt(startIndex))
+      .limit(parseInt(limitCount) + 1) // Lấy thêm 1 để kiểm tra hasMore
+      .populate("users", "firstName lastName avatar email");
+
+    // Lọc ra user bạn bè (không phải user hiện tại)
+    let friends = friendships.map((friendship) => {
+      return friendship.users.find(
+        (user) => user._id.toString() !== userId.toString()
+      );
+    });
+
+    // Nếu có name để tìm kiếm, lọc friends theo firstName hoặc lastName chứa từ khóa (không phân biệt hoa thường)
+    if (name.trim()) {
+      const keyword = name.trim().toLowerCase();
+      friends = friends.filter(
+        (friend) =>
+          (friend.firstName &&
+            friend.firstName.toLowerCase().includes(keyword)) ||
+          (friend.lastName && friend.lastName.toLowerCase().includes(keyword))
+      );
+    }
+
+    const hasMore = friends.length > parseInt(limitCount);
+    if (hasMore) friends.pop(); // Xóa phần tử dư để đúng limit
+
+    // Lấy tổng số bạn bè đã chấp nhận
+    const total = await Friendship.countDocuments({
+      users: userId,
+      status: "accepted",
+    });
+
+    res.json({
+      friends,
+      total,
+      hasMore,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Lỗi khi lấy danh sách bạn bè", error: error.message });
+  }
+};
+
 export const getFriendsMess = async (req, res) => {
   try {
     const { start = 0, limit = 5, name } = req.query;

@@ -13,6 +13,7 @@ import {
   getFriendsByRange,
   searchFriends,
   getFriendsMess,
+  getFriendsByUser,
 } from "../controllers/friendshipCTL.js";
 import {
   validateFriendRequest,
@@ -37,6 +38,7 @@ routerFriendship.post(
 
 routerFriendship.post("/cancelRequest/:userId", authMiddleware, cancelRequest);
 routerFriendship.get("/friends", authMiddleware, getFriends);
+routerFriendship.get("/friends/friendByid/:userId", getFriendsByUser);
 routerFriendship.get("/friends/mess", authMiddleware, getFriendsMess);
 routerFriendship.get(
   "/requests/received",

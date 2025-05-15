@@ -1,6 +1,6 @@
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
-import {getMessage, getMessages, deleteMessage, sendMessage, recallMessage,getMessageHistory, getMessagesByDay, getMessagesByRange, editMessage,toggleMessageReaction,getMessageReactions } from '../controllers/mesCTL.js';
+import {getMessage, getMessages, deleteMessage, sendMessage, recallMessage,getMessageHistory, getMessagesByDay, getMessagesByRange, editMessage,toggleMessageReaction,getMessageReactions, shareMessage } from '../controllers/mesCTL.js';
 import multer from 'multer';
 import path from 'path';
 
@@ -70,6 +70,7 @@ const handleMulterError = (err, req, res, next) => {
 };
 
 routerMessage.post('/send/:receiverId', authMiddleware, upload.array('media', 10), sendMessage);
+routerMessage.post('/share/:receiverId',authMiddleware,shareMessage)
 routerMessage.post('/:messageId/recall', authMiddleware, recallMessage);
 routerMessage.get('/:messageId', authMiddleware, getMessage);
 routerMessage.get('/inbox/:userId', authMiddleware, getMessagesByDay);

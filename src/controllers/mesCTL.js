@@ -119,6 +119,47 @@ export const sendMessage = async (req, res) => {
     });
   }
 };
+export const shareMessage = async (req, res) => {
+  try {
+    const { receiverId } = req.params;
+    const { content = "", id, type } = req.body;
+    const senderId = req.user._id;
+
+    // Xác định loại share: post hoặc comment
+    const newShare = { type: type || "post", id: id };
+
+    const newMessage = new Message({
+      sender: senderId,
+      receiver: receiverId,
+      content,
+      share: newShare,
+      status: "sent",
+      statusTimestamps: {
+        sent: new Date(),
+      },
+    });
+
+    await newMessage.save();
+
+    // Gửi thông báo realtime cho người nhận
+    getIO()
+      .to(`user_${receiverId}`)
+      .emit("newMessage", {
+        message: await newMessage.populate(
+          "sender",
+          "firstName lastName avatar"
+        ),
+      });
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error("Send message error:", error);
+    res.status(500).json({
+      message: "Lỗi khi gửi tin nhắn",
+      error: error.message,
+    });
+  }
+};
 
 // Lấy tin nhắn
 export const getMessage = async (req, res) => {
@@ -189,6 +230,7 @@ export const getMessagesByDay = async (req, res) => {
 };
 
 import mongoose from "mongoose";
+import { type } from "os";
 
 export const getMessagesByRange = async (req, res) => {
   try {
@@ -241,6 +283,7 @@ export const getMessagesByRange = async (req, res) => {
         receiver: msg.receiver,
         messageType: msg.messageType,
         media: msg.media,
+        share: msg.share,
         status: msg.status,
         isRecalled: msg.isRecalled,
         createdAt: msg.createdAt,

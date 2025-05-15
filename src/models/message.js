@@ -44,7 +44,6 @@ const messageSchema = new mongoose.Schema(
         enum: ["post", "comment"],
         default: "post",
       },
-
       id: { type: mongoose.Schema.Types.ObjectId, default: null },
     },
     status: {
