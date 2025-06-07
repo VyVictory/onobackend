@@ -27,11 +27,11 @@ authRoutes.get(
   (req, res) => {
     if (!req.user || !req.user.token) {
       console.error("❌ Authentication failed: No user or token found");
-      return res.redirect("https://ono-ono.vercel.app/login?error=auth_failed");
+      return res.redirect("http://localhost:3000/login?error=auth_failed");
     }
 
     console.log("✅ Authentication successful, redirecting...");
-    res.redirect(`https://ono-ono.vercel.app/login?token=${req.user.token}`);
+    res.redirect(`http://localhost:3000/login?token=${req.user.token}`);
   }
 );
 
